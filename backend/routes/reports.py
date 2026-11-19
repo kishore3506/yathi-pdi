@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import shutil
 import threading
 import uuid
@@ -11,7 +12,7 @@ from typing import Optional, List, Dict, Any
 from openpyxl import load_workbook
 
 try:
-    from ..database import get_db
+    from ..database import CUSTOMER_CATALOG, get_db
     from ..schemas import (
         ReportGenerateRequest,
         ReportUpdateRequest,
@@ -24,12 +25,13 @@ try:
     from ..services.excel_filler import ExcelFiller
     from ..services.excel_reader import ExcelReader
     from ..services import crompton_report
+    from ..services.template_matcher import TemplateMatcher
     from ..services.stg_report import (
         DOCX_MIME_TYPE, MAX_PHOTO_BYTES, PHOTO_SLOTS, normalize_photo, read_photo, write_report as write_stg_report,
     )
     from ..settings import REPORTS_DIR
 except (ImportError, ValueError):
-    from database import get_db
+    from database import CUSTOMER_CATALOG, get_db
     from schemas import (
         ReportGenerateRequest,
         ReportUpdateRequest,
@@ -42,6 +44,7 @@ except (ImportError, ValueError):
     from services.excel_filler import ExcelFiller
     from services.excel_reader import ExcelReader
     from services import crompton_report
+    from services.template_matcher import TemplateMatcher
     from services.stg_report import (
         DOCX_MIME_TYPE, MAX_PHOTO_BYTES, PHOTO_SLOTS, normalize_photo, read_photo, write_report as write_stg_report,
     )
@@ -74,6 +77,13 @@ async def generate_reports(req: ReportGenerateRequest):
         raise HTTPException(status_code=400, detail=f"Customer '{req.company_name}' is missing from the PDI customer catalog.")
 
     job_data = req.dict()
+    if min_lot == 0 and req.requirement_id is None:
+        models = next(customer["models"] for customer in CUSTOMER_CATALOG if customer["name"] == "Crompton")
+        if not any(model["name"] == req.model_name and model["type"] == req.product_type for model in models):
+            raise HTTPException(status_code=400, detail="Select a model and type from the Crompton catalog.")
+        match = TemplateMatcher().match_template("Crompton", req.product_type, req.model_name)
+        if match["template_id"] != req.template_id or match["primary_sheet"] != crompton_report.SHEET_NAME:
+            raise HTTPException(status_code=400, detail="The Crompton inspection report template is required.")
 
     try:
         result = generator.generate_batch_reports(job_data, REPORTS_DIR)
@@ -406,6 +416,11 @@ def save_report_update(report_id, req, *, photo_change=None):
             elif existing_data.get("primary_sheet") == crompton_report.SHEET_NAME:
                 temporary_path += ".xlsx"
                 values = dict(req.header_data or {})
+                if "lot_qty" in values:
+                    lot = str(values["lot_qty"]).strip()
+                    if not re.fullmatch(r"[0-9]{1,7}", lot) or int(lot) > 1_000_000:
+                        raise HTTPException(status_code=400, detail="Lot size must be an integer from 0 to 1,000,000.")
+                    values["lot_qty"] = int(lot)
                 if req.final_judgment is not None:
                     values["final_judgment"] = req.final_judgment
                 if all(sheet in existing_data.get("sheet_names", []) for sheet in crompton_report.NATIVE_SHEETS):
@@ -417,8 +432,8 @@ def save_report_update(report_id, req, *, photo_change=None):
                         load_workbook(excel_path), temporary_path, values, req.observation_readings
                     )
                 fresh_data = reader.read_report(temporary_path)
-                fresh_data["header_data"].setdefault("sku_no", values.get("sku_no", job["product_number"]))
-                fresh_data["header_data"].setdefault("po_number", values.get("po_number", job["po_number"]))
+                fresh_data["header_data"].setdefault("sku_no", header_data.get("sku_no", job["product_number"]))
+                fresh_data["header_data"].setdefault("po_number", header_data.get("po_number", job["po_number"]))
             else:
                 temporary_path += ".xlsx"
                 filler.populate_template(

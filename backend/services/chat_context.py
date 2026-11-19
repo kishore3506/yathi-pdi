@@ -19,7 +19,7 @@ APPLICATION_REFERENCE = {
     "customer_model_catalog": CUSTOMER_CATALOG,
     "screens": [
         "Dashboard: inspect job/report counts and recent inspection batches.",
-        "New Inspection: upload a requirement, extract and edit order details, select templates, and generate reports.",
+        "New Inspection: for Crompton, select a catalog model/type and enter the lot size. For other customers, upload a requirement, extract and edit order details, then generate reports.",
         "Templates: administrators manage registered report workbooks and field mappings. A customer can be listed in New Inspection before a template is registered.",
         "Generated Reports: select a model, download its native report where offered, or open Review.",
         "Report Editor: review model data and observations, approve reports, print, and email.",
@@ -47,7 +47,7 @@ APPLICATION_REFERENCE = {
     ],
     "report_generation": {
         "lot_size_rules_customer": "Havells",
-        "crompton_lot_size_rules": "Crompton generates two reports per model for lot sizes 0 through 1200 inclusive, and one report above 1200.",
+        "crompton_lot_size_rules": "The Crompton catalog workflow generates two reports for the selected model and lot size, without a document upload. Each report can be edited and saved separately before approval.",
         "crompton_second_report": "On Crompton's second report, Units 1–3 are checked on the two MAJOR rows only, and Units 4–10 show dashes from MAJOR onward. Later preset checkmarks are replaced with dashes. Both reports show the full lot size under Direct Pass; the decision is selected separately.",
         "other_customers": "Generate one report per model for the full lot quantity.",
         "lot_size_rules": [

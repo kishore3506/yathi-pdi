@@ -78,14 +78,14 @@ class ReportGenerateRequest(BaseModel):
     template_id: int
     company_name: str
     product_type: str
-    product_number: str
+    product_number: str = ""
     model_name: str
     lot_size: int
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     supplier_name: Optional[str] = None
     supplier_location: Optional[str] = None
-    po_number: str
+    po_number: str = ""
     po_total_qty: Optional[int] = None
     inspection_date: Optional[str] = None
     lot_dispatch_date: Optional[str] = None

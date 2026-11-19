@@ -43,6 +43,8 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
   const [downloading, setDownloading] = useState(false);
   const [approving, setApproving] = useState(false);
   const [stgSaving, setStgSaving] = useState(false);
+  const [cromptonSaving, setCromptonSaving] = useState(false);
+  const [cromptonEditStatus, setCromptonEditStatus] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showLegalReview, setShowLegalReview] = useState(false);
   const [legalChecklist, setLegalChecklist] = useState(null);
@@ -102,6 +104,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
   };
 
   const initReportForm = (rep) => {
+    setCromptonEditStatus('');
     setCurrentReport(rep);
     setActiveUnitIndex(rep.unit_index || 1);
     const rData = rep.report_data || {};
@@ -156,7 +159,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
 
   useEffect(() => {
     loadJobData();
-  }, [jobId, reportId, activeUnitIndex]);
+  }, [jobId, reportId]);
 
   useEffect(() => {
     publishUnsavedChanges(false);
@@ -201,18 +204,19 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
     }
   };
 
-  // Approve report
-  const applyStgUpdate = (id, savedReport) => {
-    setCurrentReport(report => report?.id === id ? {
+  const applySavedReport = (id, savedReport) => {
+    const updateReport = report => report?.id === id ? {
       ...report, revision: savedReport.revision, report_data: savedReport.report_data,
-    } : report);
+    } : report;
+    setCurrentReport(updateReport);
+    setJob(previous => previous?.reports ? { ...previous, reports: previous.reports.map(updateReport) } : previous);
   };
 
   const saveStgPhoto = async (slot, photo) => {
     const { id, revision } = currentReport;
     setStgSaving(true);
     try {
-      applyStgUpdate(id, await api.saveReportPhoto(id, slot, revision, photo));
+      applySavedReport(id, await api.saveReportPhoto(id, slot, revision, photo));
     } finally {
       setStgSaving(false);
     }
@@ -223,7 +227,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
     setStgSaving(true);
     setErrorMsg('');
     try {
-      applyStgUpdate(id, await api.updateReport(id, { expected_revision: revision, header_data: editHeader }));
+      applySavedReport(id, await api.updateReport(id, { expected_revision: revision, header_data: editHeader }));
       publishUnsavedChanges(false);
     } catch (err) {
       setErrorMsg(err.message);
@@ -232,8 +236,29 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
     }
   };
 
+  const saveCromptonReport = async () => {
+    const { id, revision } = currentReport;
+    setCromptonSaving(true);
+    setErrorMsg('');
+    try {
+      const savedReport = await api.updateReport(id, {
+        expected_revision: revision,
+        header_data: editHeader,
+        observation_readings: editObservations,
+        final_judgment: finalJudgment,
+      });
+      applySavedReport(id, savedReport);
+      setCromptonEditStatus('saved');
+      publishUnsavedChanges(false);
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setCromptonSaving(false);
+    }
+  };
+
   const handleApprove = async () => {
-    if (!currentReport || approving || stgSaving) return;
+    if (!currentReport || approving || stgSaving || cromptonSaving) return;
     setApproving(true);
     setErrorMsg('');
     try {
@@ -244,6 +269,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
         ...(currentReport.report_data?.primary_sheet !== 'Falcon PDI' && { final_judgment: finalJudgment }),
         reject_reason: rejectReason
       });
+      applySavedReport(currentReport.id, savedReport);
       await api.approveReport(currentReport.id, savedReport.revision);
       publishUnsavedChanges(false);
 
@@ -254,7 +280,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
         report => !['Approved', 'Emailed'].includes(report.status)
       );
       if (nextReport) {
-        setActiveUnitIndex(nextReport.unit_index);
+        initReportForm(nextReport);
         return;
       }
 
@@ -355,7 +381,10 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
   );
 
   return (
-    <div className="space-y-6" onChange={() => publishUnsavedChanges(true)}>
+    <div className="space-y-6" onChange={() => {
+      publishUnsavedChanges(true);
+      if (isCrompton) setCromptonEditStatus('dirty');
+    }}>
       
       {/* Top Breadcrumb & Job Header */}
       <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
@@ -449,12 +478,16 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
         {/* Individual Lot Unit Tabs */}
         {reportsList.length > 1 && (
           <div className="pt-3 border-t flex items-center space-x-2 overflow-x-auto pb-1">
-            <span className="text-xs font-bold text-gray-500 uppercase mr-1">Lot Units:</span>
+            <span className="text-xs font-bold text-gray-500 uppercase mr-1">{isCrompton ? 'Reports' : 'Lot Units'}</span>
             {reportsList.map((r) => (
               <button
                 key={r.id}
+                disabled={approving || stgSaving || cromptonSaving}
+                aria-pressed={r.unit_index === activeUnitIndex}
                 onClick={() => {
-                  setActiveUnitIndex(r.unit_index);
+                  if (r.unit_index === activeUnitIndex) return;
+                  if (cromptonEditStatus === 'dirty' && !window.confirm('Discard unsaved changes to this report?')) return;
+                  if (isCrompton) publishUnsavedChanges(false);
                   initReportForm(r);
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
@@ -463,7 +496,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                Unit #{r.unit_index} ({r.report_code})
+                {isCrompton ? `Report ${r.unit_index}` : `Unit #${r.unit_index} (${r.report_code})`}
               </button>
             ))}
           </div>
@@ -522,7 +555,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
               disabled={stgSaving || approving} onSave={saveStgPhoto} />
           </div>
         ) : (
-        <>
+        <fieldset disabled={isCrompton && (cromptonSaving || approving)} className="min-w-0">
         {/* Permitted Header Fields Grid */}
         <div className="p-5 border-b border-gray-200 bg-gray-50/50">
           <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
@@ -590,7 +623,14 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
               />
             </div>
 
-            {(isFalcon || isKsb || isCrompton) && (
+            {isCrompton ? (
+              <label className="text-gray-500 font-medium">
+                Lot Size
+                <input type="number" min={0} max={1000000} step={1} value={editHeader.lot_qty}
+                  onChange={event => setEditHeader({ ...editHeader, lot_qty: event.target.value })}
+                  className="mt-1 w-full rounded border bg-white p-1.5 text-xs" />
+              </label>
+            ) : (isFalcon || isKsb) && (
               <div>
                 <div className="text-gray-500 font-medium">{isKsb || isCrompton ? 'Lot Size' : 'Actual Quantity'}</div>
                 <div className="mt-1 w-full border rounded p-1.5 bg-gray-100 text-xs">{editHeader.lot_qty}</div>
@@ -767,7 +807,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
           </table>
         </div>
         )}
-        </>
+        </fieldset>
         )}
 
         {/* Bottom Save & Approve Bar */}
@@ -782,13 +822,18 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
             ) : (
               <p>Fixed inspection criteria and company-defined standards cannot be modified. All edits are validated against IS tolerances.</p>
             )}
-            {!isStg && <p className="mt-1 font-semibold text-amber-700">Edits are saved when you approve the report.</p>}
+            {isCrompton && cromptonEditStatus === 'saved' && <p role="status" className="mt-1 font-semibold text-green-700">Report saved.</p>}
+            {!isStg && !isCrompton && <p className="mt-1 font-semibold text-amber-700">Edits are saved when you approve the report.</p>}
           </div>
 
           <div className="flex items-center space-x-3">
+            {isCrompton && <button type="button" onClick={saveCromptonReport} disabled={cromptonSaving || approving}
+              className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">
+              {cromptonSaving ? 'Saving report…' : 'Save report'}
+            </button>}
             {!(isStg && stgReadOnly) && <button
               onClick={handleApprove}
-              disabled={approving || stgSaving}
+              disabled={approving || stgSaving || cromptonSaving}
               className="flex items-center space-x-1.5 bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 text-white px-5 py-2 rounded-lg text-xs font-bold transition shadow"
             >
               {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
@@ -824,7 +869,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
             report => !['Approved', 'Emailed'].includes(report.status)
           );
           if (pendingReport && pendingReport.unit_index !== activeUnitIndex) {
-            setActiveUnitIndex(pendingReport.unit_index);
+            initReportForm(pendingReport);
           }
           setErrorMsg('Approve every PDI report for every model before emailing the inspection batch.');
         }}

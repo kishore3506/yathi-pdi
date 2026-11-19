@@ -48,7 +48,6 @@ class ReportGenerationTests(unittest.TestCase):
             database.init_db()
             for customer, template in (
                 ("Falcon", "Falcon_PDI.xlsx"),
-                ("Crompton", "6) MBD - R4.xlsx"),
                 ("KSB", "KSB -PDI Report Format.xlsx"),
             ):
                 with self.subTest(customer=customer):
@@ -76,8 +75,9 @@ class ReportGenerationTests(unittest.TestCase):
                     self.assertEqual(report["report_data"]["header_data"]["lot_qty"], "4001")
 
     def test_crompton_uses_excel_template_and_splits_lots_through_1200(self):
-        from routes.reports import save_report_update
-        from schemas import ReportUpdateRequest
+        import asyncio
+        from routes.reports import generate_reports, save_report_update
+        from schemas import ReportGenerateRequest, ReportUpdateRequest
         from services.crompton_report import NATIVE_SHEETS, TEMPLATE_NAME
         from services.report_generator import report_count_for_lot
         from services.template_matcher import TemplateMatcher
@@ -92,11 +92,17 @@ class ReportGenerationTests(unittest.TestCase):
             data = {
                 "template_id": match["template_id"], "company_name": "Crompton",
                 "product_type": "CMB", "model_name": "MBD052(1PH)Y-18",
-                "product_number": "TEST-SKU", "po_number": "TEST-PO", "lot_size": 560,
+                "lot_size": 560,
                 "serial_numbers": [f"SERIAL-{i:02}" for i in range(1, 21)],
             }
-            job = generator.generate_batch_reports(data, temp_dir)
+            with patch("routes.reports.REPORTS_DIR", temp_dir):
+                job = asyncio.run(generate_reports(ReportGenerateRequest(**data)))
+                large = asyncio.run(generate_reports(ReportGenerateRequest(**{**data, "lot_size": 1201})))
             report, second = job["reports"]
+            self.assertEqual(large["total_reports"], 2)
+            self.assertIn(data["model_name"], second["report_code"])
+            self.assertEqual([item["report_data"]["header_data"]["model_name"] for item in job["reports"]],
+                             [data["model_name"]] * 2)
             self.assertEqual(job["quantity_allocations"], [280, 280])
             self.assertEqual([item["report_data"]["header_data"]["lot_qty"] for item in job["reports"]], ["560", "560"])
             self.assertEqual(second["report_data"]["sample_serials"]["G"], "SERIAL-11")
@@ -139,8 +145,14 @@ class ReportGenerationTests(unittest.TestCase):
             self.assertEqual(saved["report_data"]["header_data"]["final_judgment"], "Passed after Rework")
             saved_second = save_report_update(second["id"], ReportUpdateRequest(
                 expected_revision=1, final_judgment="Direct Pass",
+                header_data={"model_name": "Updated second report", "lot_qty": 561, "po_number": "SECOND-PO"},
+                observation_readings={"16": {"G": "UPDATED-SERIAL"}, "22": {"G": "RECHECK", "J": "CHECKED-LATER"}},
             ))
             self.assertEqual(saved_second["report_data"]["header_data"]["final_judgment"], "Direct Pass")
+            self.assertEqual(saved_second["report_data"]["header_data"]["po_number"], "SECOND-PO")
+            self.assertEqual(saved_second["report_data"]["sample_serials"]["G"], "UPDATED-SERIAL")
+            second_major = next(check for check in saved_second["report_data"]["checkpoints"] if check["row_index"] == 22)
+            self.assertEqual((second_major["observations"]["G"], second_major["observations"]["J"]), ("RECHECK", "CHECKED-LATER"))
             with ZipFile(BACKEND_ROOT / "templates" / TEMPLATE_NAME) as source, ZipFile(report["excel_path"]) as actual:
                 for part in source.namelist():
                     if part not in {"xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"}:
@@ -155,8 +167,9 @@ class ReportGenerationTests(unittest.TestCase):
             for text in ("42.5", "QA Tester", "Check confirmed"):
                 self.assertIn(text, page_two)
             second_pdf = PdfReader(generator.convert_to_pdf(second["id"]))
-            self.assertIn("560", second_pdf.pages[0].extract_text())
-            self.assertIn("560", second_pdf.pages[1].extract_text())
+            self.assertIn("561", second_pdf.pages[0].extract_text())
+            self.assertIn("561", second_pdf.pages[1].extract_text())
+            self.assertIn("Updated second report", second_pdf.pages[0].extract_text())
 
     def test_ksb_uses_the_registered_layout_and_all_fourteen_sample_columns(self):
         from services.template_matcher import TemplateMatcher

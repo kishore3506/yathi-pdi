@@ -13,6 +13,7 @@ export default function GeneratedReportsPage({
   const selectedJob = generatedJobs.find(
     job => String(job.job_id) === selectedReviewJobId
   );
+  const isCrompton = selectedJob?.company_name?.toLowerCase() === 'crompton';
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -53,7 +54,10 @@ export default function GeneratedReportsPage({
               >
                 <div className="min-w-0">
                   <h2 className="break-words font-bold text-gray-900">{job.model_name || job.product_number}</h2>
-                  <p className="mt-1 text-xs text-gray-600">SKU {job.product_number} · PO {job.po_number}</p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {[job.product_number && `SKU ${job.product_number}`, job.po_number && `PO ${job.po_number}`].filter(Boolean).join(' · ') ||
+                      `${job.product_type} · Lot ${job.lot_size}`}
+                  </p>
                   {job.legal_status && (
                     <p className="mt-2 text-xs font-medium text-indigo-700">
                       J1 legal checksheet generated for review after the PDI reports.
@@ -79,7 +83,8 @@ export default function GeneratedReportsPage({
                 ? api.getPdfDownloadUrl(report.id) : api.getDocumentDownloadUrl(report.id)}
                 className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-800">
                 <Download className="h-4 w-4" />
-                {report.report_data?.format === 'docx' ? 'Download Word report' : 'Download PDF report'}
+                {isCrompton ? `Download Report ${report.unit_index} PDF`
+                  : report.report_data?.format === 'docx' ? 'Download Word report' : 'Download PDF report'}
               </a>
             ))}
             <button
@@ -92,7 +97,7 @@ export default function GeneratedReportsPage({
               }}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
-              Review this model&apos;s reports
+              {isCrompton ? 'Edit reports' : 'Review this model’s reports'}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>

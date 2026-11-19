@@ -79,25 +79,30 @@ class ReportGenerator:
         records its allocated quantity, except Crompton uses the full lot as its
         report header.
         """
-        conn = get_db()
-        cursor = conn.cursor()
-
         company_name = job_data.get("company_name")
         if not company_name:
             raise ValueError("Customer must be read from the input or selected by the user")
         clean_company = re.sub(r'[^a-zA-Z0-9]', '', company_name)
         product_type = job_data.get("product_type")
-        product_number = job_data.get("product_number")
-        if not product_type or not product_number or not job_data.get("model_name") or not job_data.get("po_number"):
+        product_number = job_data.get("product_number") or ""
+        model_name = job_data.get("model_name")
+        is_crompton = company_name.strip().casefold() == "crompton"
+        manual_crompton = is_crompton and job_data.get("requirement_id") is None
+        if not product_type or not model_name:
+            raise ValueError("Product type and model name are required")
+        if not manual_crompton and (not product_number or not job_data.get("po_number")):
             raise ValueError("Product type, model name, SKU, and PO number are required")
         lot_size = int(job_data["lot_size"])
         is_havells = company_name.strip().casefold() == "havells"
-        is_crompton = company_name.strip().casefold() == "crompton"
         report_count = report_count_for_lot(lot_size, split_lot=is_havells, is_crompton=is_crompton)
+        if manual_crompton:
+            report_count = 2
         allocations = allocate_lot_quantity(lot_size, report_count)
         template_id = int(job_data.get("template_id"))
 
         # Fetch template record
+        conn = get_db()
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM pdi_templates WHERE id = ?", (template_id,))
         template_row = cursor.fetchone()
         if not template_row:
@@ -142,7 +147,8 @@ class ReportGenerator:
         ))
         job_id = cursor.lastrowid
 
-        clean_prod_num = product_number.replace(" ", "-").replace("/", "-")
+        report_identifier = model_name if manual_crompton else product_number
+        clean_prod_num = re.sub(r'[<>:"/\\|?*\x00-\x1f\s]+', '-', report_identifier).strip('.-') or 'MODEL'
         job_folder = os.path.join(output_dir, job_code)
         os.makedirs(job_folder, exist_ok=True)
 

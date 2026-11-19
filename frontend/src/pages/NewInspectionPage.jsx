@@ -23,7 +23,7 @@ const getReportCount = (lotSize, customer) => {
   if (String(lotSize ?? '').trim() === '') return 0;
   const qty = Number(lotSize);
   if (!Number.isInteger(qty) || qty < 0 || qty > 1000000) return 0;
-  if (customer === 'crompton') return qty <= 1200 ? 2 : 1;
+  if (customer === 'crompton') return 2;
   if (qty === 0) return 0;
   if (customer !== 'havells' || qty <= 100) return 1;
   if (qty <= 1200) return 2;
@@ -35,6 +35,23 @@ const getReportCount = (lotSize, customer) => {
 const customerLabel = customer => customer.code.toLowerCase() === customer.name.toLowerCase()
   ? customer.name
   : `${customer.name} (${customer.code})`;
+
+const emptyInspection = {
+  requirement_id: null,
+  company_name: '',
+  product_type: '',
+  product_number: '',
+  model_name: '',
+  lot_size: '',
+  customer_name: '',
+  customer_email: '',
+  supplier_name: '',
+  supplier_location: '',
+  po_number: '',
+  po_total_qty: '',
+  inspection_date: '',
+  lot_dispatch_date: '',
+};
 
 export default function NewInspectionPage({
   setActiveTab,
@@ -56,27 +73,12 @@ export default function NewInspectionPage({
   const selectedCustomerRef = useRef('');
   const matchRequestRef = useRef(0);
 
-  // Start blank: all order data must come from the uploaded requirement or explicit review.
-  const [formData, setFormData] = useState({
-    requirement_id: null,
-    company_name: '',
-    product_type: '',
-    product_number: '',
-    model_name: '',
-    lot_size: '',
-    customer_name: '',
-    customer_email: '',
-    supplier_name: '',
-    supplier_location: '',
-    po_number: '',
-    po_total_qty: '',
-    inspection_date: '',
-    lot_dispatch_date: '',
-  });
+  const [formData, setFormData] = useState(emptyInspection);
 
   const [missingFields, setMissingFields] = useState([]);
   const [uncertainFields, setUncertainFields] = useState([]);
   const reportCustomer = formData.company_name.trim().toLowerCase();
+  const isCrompton = reportCustomer === 'crompton';
   const modelEntries = [
     {
       id: 'primary',
@@ -140,21 +142,29 @@ export default function NewInspectionPage({
   const handleSelectCustomer = async (customer) => {
     publishUnsavedChanges(true);
     selectedCustomerRef.current = customer;
+    setErrorMsg('');
+    const usesCatalog = customer.toLowerCase() === 'crompton';
+    const resetOrder = usesCatalog || isCrompton;
     if (customer !== formData.company_name) {
       setAdditionalModels([]);
       setGeneratedJobs([]);
       setSelectedReviewJobId('');
       setGenerationWarning('');
     }
+    if (resetOrder) {
+      setFile(null);
+      setMissingFields([]);
+      setUncertainFields([]);
+      setExtractionFailed(false);
+    }
     setFormData(prev => ({
-      ...prev,
+      ...(resetOrder ? emptyInspection : prev),
       company_name: customer,
       customer_name: customer,
       product_type: '',
       model_name: ''
     }));
-    if (customer && formData.requirement_id) {
-      setErrorMsg('');
+    if (customer && formData.requirement_id && !resetOrder) {
       setExtractionFailed(false);
       try {
         await extractUploadedRequirement(formData.requirement_id, customer);
@@ -168,6 +178,14 @@ export default function NewInspectionPage({
     } else {
       triggerMatch(customer);
     }
+  };
+
+  const handleSelectCromptonModel = (modelName) => {
+    const model = selectedCustomer?.models.find(item => item.name === modelName);
+    if (!model) return;
+    setErrorMsg('');
+    setFormData(previous => ({ ...previous, model_name: model.name, product_type: model.type }));
+    triggerMatch(formData.company_name, model.type, model.name);
   };
 
   const extractUploadedRequirement = async (requirementId, customerName = formData.company_name) => {
@@ -341,7 +359,7 @@ export default function NewInspectionPage({
 
   const generateJob = async (values, match) => {
     const res = await api.generateReports({
-      requirement_id: values.requirement_id,
+      requirement_id: isCrompton ? null : values.requirement_id,
       template_id: match.template_id,
       company_name: values.company_name,
       product_type: values.product_type,
@@ -373,11 +391,11 @@ export default function NewInspectionPage({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file || !formData.requirement_id) {
+    if (!isCrompton && (!file || !formData.requirement_id)) {
       setErrorMsg('Upload the purchase order or requirement image first. Reports are generated from the uploaded document.');
       return;
     }
-    const missingRequired = ['company_name', 'product_type', 'po_number']
+    const missingRequired = (isCrompton ? ['company_name', 'product_type'] : ['company_name', 'product_type', 'po_number'])
       .filter(field => String(formData[field] ?? '').trim() === '');
     if (missingRequired.length) {
       setErrorMsg(`Fill or correct the required details before generating: ${missingRequired.join(', ')}.`);
@@ -385,12 +403,12 @@ export default function NewInspectionPage({
     }
     const incompleteModelIndex = modelEntries.findIndex(model =>
       !String(model.model_name ?? '').trim() ||
-      !String(model.product_number ?? '').trim() ||
-      !String(model.po_number ?? '').trim() ||
+      (!isCrompton && (!String(model.product_number ?? '').trim() || !String(model.po_number ?? '').trim())) ||
       !getReportCount(model.lot_size, reportCustomer)
     );
     if (incompleteModelIndex !== -1) {
-      setErrorMsg(`Enter a model name, SKU, PO number, and valid lot size for model ${incompleteModelIndex + 1}.`);
+      setErrorMsg(isCrompton ? 'Select a Crompton model and enter a valid lot size.'
+        : `Enter a model name, SKU, PO number, and valid lot size for model ${incompleteModelIndex + 1}.`);
       return;
     }
     if (!templateMatch.matched || !templateMatch.template_id) {
@@ -440,9 +458,9 @@ export default function NewInspectionPage({
       {/* Title */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Initiate Pre-Dispatch Inspection (PDI)</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          <b>Select a customer and upload the order:</b> Once both are provided, Google Gemini reads every item name, SKU, PO, and quantity, then fills the model details automatically.
-        </p>
+        {!isCrompton && <p className="text-sm text-gray-500 mt-1">
+          Select a customer and upload the order to fill the model details automatically.
+        </p>}
       </div>
 
       {errorMsg && (
@@ -478,8 +496,36 @@ export default function NewInspectionPage({
       {/* Grid: Upload Box + Template Match */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Upload Box (Col 1-2) */}
-        <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+        {isCrompton ? (
+          <form onSubmit={handleSubmit} className="md:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <fieldset disabled={generating} className="space-y-4">
+              <legend className="mb-3 font-bold text-gray-800">Crompton inspection</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Model / type
+                  <select required value={formData.model_name} onChange={event => handleSelectCromptonModel(event.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white p-2.5">
+                    <option value="" disabled>Select a model</option>
+                    {selectedCustomer?.models.map(model => (
+                      <option key={model.name} value={model.name}>{model.name} · {model.type}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-gray-700">
+                  Lot size
+                  <input required type="number" min={0} max={1000000} step={1} value={formData.lot_size}
+                    onChange={event => updateModelEntry(0, 'lot_size', event.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 p-2.5" />
+                </label>
+              </div>
+              <button type="submit" disabled={!formData.model_name || !totalReportCount || !templateMatch.matched}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50">
+                {generating && <Loader2 className="h-4 w-4 animate-spin" />}
+                {generating ? 'Generating reports…' : 'Generate 2 editable reports'}
+              </button>
+            </fieldset>
+          </form>
+        ) : <div className="md:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-gray-800 flex items-center space-x-2">
             <UploadCloud className="w-5 h-5 text-blue-700" />
               <span>Upload Requirement Document (Required)</span>
@@ -535,7 +581,7 @@ export default function NewInspectionPage({
               Retry image extraction
             </button>
           )}
-        </div>
+        </div>}
 
         {/* Template Match Card (Col 3) */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4 flex flex-col justify-between">
@@ -574,7 +620,7 @@ export default function NewInspectionPage({
 
       </div>
 
-        {file && formData.requirement_id && !uploading && !extracting && formData.company_name && (
+        {!isCrompton && file && formData.requirement_id && !uploading && !extracting && formData.company_name && (
         <div className="w-full space-y-4">
         <div className="w-full bg-white rounded-xl border border-blue-200 shadow-md overflow-hidden">
           <div className="p-5 border-b border-blue-100 bg-blue-50/60">
