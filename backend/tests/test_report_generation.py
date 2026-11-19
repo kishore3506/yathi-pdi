@@ -106,7 +106,19 @@ class ReportGenerationTests(unittest.TestCase):
                 expected = first_check["observations"].copy()
                 if first_check["row_index"] >= 22:
                     expected.update(dict.fromkeys("JKLMNOP", "-"))
+                    for column in "GHI":
+                        if first_check["row_index"] <= 23:
+                            expected[column] = "✓"
+                        elif expected[column] == "✓":
+                            expected[column] = "-"
                 self.assertEqual(second_check["observations"], expected, first_check["parameter"])
+            for item in (report, second):
+                workbook = openpyxl.load_workbook(item["excel_path"], read_only=True)
+                try:
+                    self.assertEqual(workbook["Table 2"]["C15"].value, 560)
+                    self.assertEqual(item["report_data"]["header_data"]["final_judgment"], "")
+                finally:
+                    workbook.close()
             self.assertEqual(report["report_data"]["checkpoints"][5]["observations"]["J"], "✓")
             zero = generator.generate_batch_reports({**data, "lot_size": 0}, temp_dir)
             self.assertEqual(zero["quantity_allocations"], [0, 0])
@@ -125,6 +137,10 @@ class ReportGenerationTests(unittest.TestCase):
                 final_judgment="Passed after Rework",
             ))
             self.assertEqual(saved["report_data"]["header_data"]["final_judgment"], "Passed after Rework")
+            saved_second = save_report_update(second["id"], ReportUpdateRequest(
+                expected_revision=1, final_judgment="Direct Pass",
+            ))
+            self.assertEqual(saved_second["report_data"]["header_data"]["final_judgment"], "Direct Pass")
             with ZipFile(BACKEND_ROOT / "templates" / TEMPLATE_NAME) as source, ZipFile(report["excel_path"]) as actual:
                 for part in source.namelist():
                     if part not in {"xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"}:
@@ -140,6 +156,7 @@ class ReportGenerationTests(unittest.TestCase):
                 self.assertIn(text, page_two)
             second_pdf = PdfReader(generator.convert_to_pdf(second["id"]))
             self.assertIn("560", second_pdf.pages[0].extract_text())
+            self.assertIn("560", second_pdf.pages[1].extract_text())
 
     def test_ksb_uses_the_registered_layout_and_all_fourteen_sample_columns(self):
         from services.template_matcher import TemplateMatcher

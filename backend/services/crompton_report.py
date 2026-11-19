@@ -81,6 +81,8 @@ NATIVE_COLUMNS = dict(zip((*COLUMNS, "U"), "IJKLMNOPQRS"))
 NATIVE_ROWS = dict(zip(CHECK_ROWS, [("Table 1", row) for row in range(13, 20)] +
                        [("Table 2", row) for row in range(1, 10)]))
 MAJOR_START_ROW = 22
+MAJOR_END_ROW = 23
+DIRECT_PASS_CELL = NATIVE_DECISIONS[DECISIONS[0]]
 
 
 def _text(value):
@@ -110,7 +112,16 @@ def write_native_workbook(source, destination, data, observations=None, *, unit_
         decision = data.get("final_judgment")
         if decision in (*DECISIONS, ""):
             for label, address in NATIVE_DECISIONS.items():
-                updates["Table 2"][address] = "✓" if decision == label else None
+                if address != DIRECT_PASS_CELL:
+                    updates["Table 2"][address] = "✓" if decision == label else None
+        if data.get("lot_qty") is not None or decision in (*DECISIONS, ""):
+            lot_sheet, lot_address = NATIVE_FIELDS["lot_qty"]
+            lot = updates[lot_sheet].get(lot_address, workbook[lot_sheet][lot_address].value)
+            direct_pass_marked = (
+                decision == DECISIONS[0] if decision in (*DECISIONS, "")
+                else "✓" in _text(workbook["Table 2"][DIRECT_PASS_CELL].value)
+            )
+            updates["Table 2"][DIRECT_PASS_CELL] = f"{_text(lot)} ✓".strip() if direct_pass_marked else lot
         for column, serial in zip(COLUMNS, data.get("serial_numbers") or ()):
             updates["Table 1"][f"{NATIVE_COLUMNS[column]}12"] = _text(serial)
         for row, (sheet, native_row) in {SERIAL_ROW: ("Table 1", 12), **NATIVE_ROWS}.items():
@@ -126,9 +137,17 @@ def write_native_workbook(source, destination, data, observations=None, *, unit_
                     updates[sheet][address] = value or None
         if unit_index == 2:
             for row, (sheet, native_row) in NATIVE_ROWS.items():
-                if row >= MAJOR_START_ROW:
-                    for column in COLUMNS[3:]:
-                        updates[sheet][f"{NATIVE_COLUMNS[column]}{native_row}"] = "-"
+                if row < MAJOR_START_ROW:
+                    continue
+                for index, column in enumerate(COLUMNS):
+                    address = f"{NATIVE_COLUMNS[column]}{native_row}"
+                    current = updates[sheet].get(address, workbook[sheet][address].value)
+                    if index >= 3:
+                        updates[sheet][address] = "-"
+                    elif row <= MAJOR_END_ROW:
+                        updates[sheet][address] = "✓"
+                    elif _text(current).strip() in {"✓", "✔"}:
+                        updates[sheet][address] = "-"
     finally:
         workbook.close()
     write_cell_values(source, destination, updates)
@@ -143,7 +162,7 @@ def read_native_report(workbook):
     for field in ("inspected_by", "approved_by"):
         header[field] = header[field].removeprefix("Name :").strip()
     header["final_judgment"] = next(
-        (label for label, cell in NATIVE_DECISIONS.items() if reading("Table 2", cell) == "✓"), ""
+        (label for label, cell in NATIVE_DECISIONS.items() if reading("Table 2", cell).endswith("✓")), ""
     )
     return {
         "primary_sheet": SHEET_NAME,
