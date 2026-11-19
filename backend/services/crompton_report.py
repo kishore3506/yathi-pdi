@@ -94,6 +94,18 @@ def write_native_workbook(source, destination, data, observations=None, *, unit_
     if unit_index is not None:
         # Unit 1 actual value for the temperature rise test (Other Test/Inspection, row 4).
         updates["Table 2"]["I9"] = "Refer attach sheet"
+    if unit_index == 1:
+        lot_size = int(data["lot_qty"])
+        sample_count = next((count for limit, count in ((25, 1), (50, 2), (100, 3))
+                             if lot_size <= limit), 5)
+        # The first three Other Test/Inspection rows cover discharge, pressure and leakage.
+        for column in COLUMNS[:sample_count]:
+            native_column = NATIVE_COLUMNS[column]
+            updates["Table 2"].update({
+                f"{native_column}6": "Refer attach sheet",
+                f"{native_column}7": "Refer attach sheet",
+                f"{native_column}8": "✓",
+            })
     workbook = load_workbook(source)
     try:
         for field, (sheet, address) in NATIVE_FIELDS.items():

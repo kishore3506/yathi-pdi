@@ -110,11 +110,14 @@ class ReportGenerationTests(unittest.TestCase):
                 report["report_data"]["checkpoints"], second["report_data"]["checkpoints"]
             ):
                 expected = first_check["observations"].copy()
-                if first_check["row_index"] >= 22:
+                row = first_check["row_index"]
+                if row >= 22:
                     expected.update(dict.fromkeys("JKLMNOP", "-"))
                     for column in "GHI":
-                        if first_check["row_index"] <= 23:
+                        if row <= 23:
                             expected[column] = "✓"
+                        elif 29 <= row <= 31:
+                            expected[column] = "_"
                         elif expected[column] == "✓":
                             expected[column] = "-"
                 self.assertEqual(second_check["observations"], expected, first_check["parameter"])
@@ -172,6 +175,26 @@ class ReportGenerationTests(unittest.TestCase):
             self.assertIn("561", second_pdf.pages[1].extract_text())
             self.assertIn("Refer attach sheet", " ".join(second_pdf.pages[1].extract_text().split()))
             self.assertIn("Updated second report", second_pdf.pages[0].extract_text())
+
+    def test_crompton_performance_and_leakage_sampling_on_report_one(self):
+        from services.crompton_report import TEMPLATE_NAME, write_native_workbook
+
+        template = BACKEND_ROOT / "templates" / TEMPLATE_NAME
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "crompton.xlsx"
+            for lot_size, sample_count in ((0, 1), (25, 1), (26, 2), (50, 2),
+                                           (51, 3), (100, 3), (101, 5), (1103, 5)):
+                with self.subTest(lot_size=lot_size):
+                    write_native_workbook(template, output, {"lot_qty": lot_size}, unit_index=1)
+                    workbook = openpyxl.load_workbook(output, read_only=True)
+                    try:
+                        sheet = workbook["Table 2"]
+                        for row, mark in ((6, "Refer attach sheet"), (7, "Refer attach sheet"), (8, "✓")):
+                            cells = [sheet[f"{column}{row}"].value.strip() for column in "IJKLMNOPQR"]
+                            self.assertEqual(cells, [mark] * sample_count + ["_"] * (10 - sample_count))
+                        self.assertEqual(sheet["I9"].value, "Refer attach sheet")
+                    finally:
+                        workbook.close()
 
     def test_ksb_uses_the_registered_layout_and_all_fourteen_sample_columns(self):
         from services.template_matcher import TemplateMatcher

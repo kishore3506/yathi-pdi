@@ -49,6 +49,7 @@ APPLICATION_REFERENCE = {
         "lot_size_rules_customer": "Havells",
         "crompton_lot_size_rules": "The Crompton catalog workflow generates two reports for the selected model and lot size, without a document upload. Each report can be edited and saved separately before approval.",
         "crompton_second_report": "On Crompton's second report, Units 1–3 are checked on the two MAJOR rows only, and Units 4–10 show dashes from MAJOR onward. Later preset checkmarks are replaced with dashes. Both reports show the full lot size under Direct Pass; the decision is selected separately.",
+        "crompton_performance_sampling": "In Report 1 only, Other Test/Inspection uses the first 1, 2, 3, or 5 Unit boxes for lot sizes up to 25, 26–50, 51–100, or above 100 respectively. Discharge and pressure say Refer attach sheet, and leakage shows a checkmark for the same units.",
         "other_customers": "Generate one report per model for the full lot quantity.",
         "lot_size_rules": [
             {"minimum_lot_size": 1, "maximum_lot_size": 100, "reports": 1},
