@@ -122,6 +122,7 @@ class ReportGenerationTests(unittest.TestCase):
                 workbook = openpyxl.load_workbook(item["excel_path"], read_only=True)
                 try:
                     self.assertEqual(workbook["Table 2"]["C15"].value, 560)
+                    self.assertEqual(workbook["Table 2"]["I9"].value, "Refer attach sheet")
                     self.assertEqual(item["report_data"]["header_data"]["final_judgment"], "")
                 finally:
                     workbook.close()
@@ -169,6 +170,7 @@ class ReportGenerationTests(unittest.TestCase):
             second_pdf = PdfReader(generator.convert_to_pdf(second["id"]))
             self.assertIn("561", second_pdf.pages[0].extract_text())
             self.assertIn("561", second_pdf.pages[1].extract_text())
+            self.assertIn("Refer attach sheet", " ".join(second_pdf.pages[1].extract_text().split()))
             self.assertIn("Updated second report", second_pdf.pages[0].extract_text())
 
     def test_ksb_uses_the_registered_layout_and_all_fourteen_sample_columns(self):

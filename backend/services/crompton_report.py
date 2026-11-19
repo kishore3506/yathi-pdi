@@ -89,8 +89,11 @@ def _text(value):
     return "" if value is None else str(value)
 
 
-def write_native_workbook(source, destination, data, observations=None, *, unit_index=1):
+def write_native_workbook(source, destination, data, observations=None, *, unit_index=None):
     updates = {sheet: {} for sheet in NATIVE_SHEETS}
+    if unit_index is not None:
+        # Unit 1 actual value for the temperature rise test (Other Test/Inspection, row 4).
+        updates["Table 2"]["I9"] = "Refer attach sheet"
     workbook = load_workbook(source)
     try:
         for field, (sheet, address) in NATIVE_FIELDS.items():
@@ -133,7 +136,8 @@ def write_native_workbook(source, destination, data, observations=None, *, unit_
                     continue
                 address = f"{NATIVE_COLUMNS[column]}{native_row}"
                 value = _text(readings[column])
-                if value != _text(workbook[sheet][address].value).strip():
+                current = updates[sheet].get(address, workbook[sheet][address].value)
+                if value != _text(current).strip():
                     updates[sheet][address] = value or None
         if unit_index == 2:
             for row, (sheet, native_row) in NATIVE_ROWS.items():
