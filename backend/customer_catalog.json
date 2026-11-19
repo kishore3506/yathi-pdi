@@ -1,0 +1,230 @@
+[
+  {"name": "Havells", "code": "HIL",
+    "models": [
+      {"name": "HYDRANT2", "type": "SP"},
+      {"name": "HYDRANT1", "type": "SP"},
+      {"name": "HVFLO2", "type": "SP"},
+      {"name": "HVFLO2 ULTRA", "type": "SP"},
+      {"name": "JOY2 ULTRA", "type": "SP"},
+      {"name": "JOY1 ULTRA", "type": "SP"},
+      {"name": "SPRING1 ULTRA", "type": "SP"},
+      {"name": "S1.5W ULTRA", "type": "SP"},
+      {"name": "JOY2", "type": "SP"},
+      {"name": "JOY1", "type": "SP"},
+      {"name": "SPRING1 PLUS", "type": "SP"},
+      {"name": "VARSHA2", "type": "SWJ"},
+      {"name": "VARSHA2 AL", "type": "SWJ"},
+      {"name": "VARSHA1", "type": "SWJ"},
+      {"name": "VARSHA1 AL", "type": "SWJ"},
+      {"name": "DHS-2", "type": "DMS"},
+      {"name": "DHS-1", "type": "DMS"},
+      {"name": "CMM05-14", "type": "CMB"},
+      {"name": "CMM05-18", "type": "CMB"},
+      {"name": "CMM05-18CI", "type": "CMB"},
+      {"name": "CM05", "type": "CMB"},
+      {"name": "CMM05-21", "type": "CMB"},
+      {"name": "CMN10-29", "type": "CMB"},
+      {"name": "CMM10-30", "type": "CMB"},
+      {"name": "CMJ15-20", "type": "CMB"},
+      {"name": "CMJ15-33", "type": "CMB"},
+      {"name": "CMM10EX", "type": "CMB"},
+      {"name": "BWJ11T", "type": "BORE WELL JET"},
+      {"name": "BWJ12T", "type": "BORE WELL JET"}
+    ]
+  },
+  {"name": "Crompton", "code": "CGCEL",
+    "models": [
+      {"name": "MAD052(1PH)Y-14", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-14+", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-14SE", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-18", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-18+", "type": "CMB"},
+      {"name": "MBD052(1PH)Y-18", "type": "CMB"},
+      {"name": "MBD052(1PH)Y-18+", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-21", "type": "CMB"},
+      {"name": "MAD052(1PH)Y-21+", "type": "CMB"},
+      {"name": "MBJ052(1PH)Y-12", "type": "CMB"},
+      {"name": "MBM052(1PH)Y-12", "type": "CMB"},
+      {"name": "MAE12(1PH)Y-29", "type": "CMB"},
+      {"name": "MAE12(1PH)Y-29+", "type": "CMB"},
+      {"name": "MAD12(1PH)Y-30", "type": "CMB"},
+      {"name": "MAD12(1PH)Y-30+", "type": "CMB"},
+      {"name": "MINI ACE II", "type": "SP"},
+      {"name": "MINI ACE I", "type": "SP"},
+      {"name": "SWJ50AT-30 PLUS", "type": "SWJ"},
+      {"name": "SWJ100AT-36PLUS", "type": "SWJ"}
+    ]
+  },
+  {"name": "KOEL", "code": "KOEL",
+    "models": [
+      {"name": "MM1.2525.01.1.EL", "type": "SP"},
+      {"name": "GLACIA-56", "type": "SP"},
+      {"name": "KCJ.3225.01.1.02", "type": "JET"},
+      {"name": "MS1.2525.0P5.1A", "type": "SWJ"},
+      {"name": "MS1.2525.1.1A", "type": "SWJ"},
+      {"name": "MB1.2525.OP5.01.HY-A21", "type": "CMB"},
+      {"name": "MB1.2525.OP5.01.HY-A14", "type": "CMB"},
+      {"name": "MB1.3225.01.01.HY-A29", "type": "CMB"}
+    ]
+  },
+  {"name": "Varuna", "code": "VARUNA",
+    "models": [
+      {"name": "VSWA 2", "type": "SWJ"},
+      {"name": "VSWA 1", "type": "SWJ"},
+      {"name": "VMSTP-S70", "type": "JET"}
+    ]
+  },
+  {"name": "Falcon", "code": "FALCON",
+    "models": [
+      {"name": "NANO-35", "type": "SP"},
+      {"name": "NANO-40", "type": "SP"},
+      {"name": "NANO-45", "type": "SP"},
+      {"name": "NANO-50V", "type": "SP"},
+      {"name": "KNIGHT RIDER SPL50", "type": "SWJ"},
+      {"name": "KNIGHT RIDER SPL100", "type": "SWJ"},
+      {"name": "KNIGHT RIDER SPL50 -CI", "type": "SWJ"},
+      {"name": "KNIGHT RIDER SPL100-CI", "type": "SWJ"},
+      {"name": "MASTER BLASTER -50", "type": "DMS"},
+      {"name": "MASTER BLASTER -100", "type": "DMS"},
+      {"name": "DHS-130", "type": "OPEN WELL"},
+      {"name": "DSH-135", "type": "OPEN WELL"},
+      {"name": "DSH-518", "type": "OPEN WELL"},
+      {"name": "DSH-1535", "type": "OPEN WELL"}
+    ]
+  },
+  {"name": "KSB", "code": "KSB",
+    "models": [
+      {"name": "SMARTY II PLUS", "type": "SP"},
+      {"name": "SMARTY I PLUS", "type": "SP"},
+      {"name": "SWIFT", "type": "SP"},
+      {"name": "PERIJET PRO II", "type": "SWJ"},
+      {"name": "PERIJET PRO I", "type": "SWJ"},
+      {"name": "PERIJET GII PLUS", "type": "SWJ"},
+      {"name": "PERIJET GI PLUS", "type": "SWJ"},
+      {"name": "TSJ I PLUS S1", "type": "BORE WELL JET"},
+      {"name": "TSJ I PLUS S2", "type": "BORE WELL JET"}
+    ]
+  },
+  {"name": "Pluga", "code": "PLUGA",
+    "models": [
+      {"name": "PLENTY 05", "type": "SP"},
+      {"name": "PLENTY  10", "type": "SP"},
+      {"name": "DIWINE 05", "type": "DMS"},
+      {"name": "DIWINE 10", "type": "DMS"}
+    ]
+  },
+  {"name": "Medini", "code": "MEDINI",
+    "models": [
+      {"name": "JHARNA", "type": "SP"},
+      {"name": "JHARNA I", "type": "SP"},
+      {"name": "MCM- 300 ALU ES", "type": "CMB"},
+      {"name": "MCM-302 ES", "type": "CMB"}
+    ]
+  },
+  {"name": "Polar", "code": "POLAR",
+    "models": [
+      {"name": "POWER NEO 0.5 HP", "type": "SP"},
+      {"name": "POWER NEO 1.0  HP", "type": "SP"}
+    ]
+  },
+  {"name": "Krishna Entreprises", "code": "KRISHNA",
+    "models": [
+      {"name": "KRISHNA -50", "type": "SP", "group": "SEA-7"},
+      {"name": "KRISHNA -100", "type": "SP", "group": "SEA-7"},
+      {"name": "KRISHNA-150", "type": "SP", "group": "SEA-7"},
+      {"name": "KRISHNA -200", "type": "SP", "group": "SEA-7"},
+      {"name": "SHYAM-50", "type": "SP", "group": "SEA-7"},
+      {"name": "SHYAM-100", "type": "SP", "group": "SEA-7"},
+      {"name": "SHYAM-150", "type": "SP", "group": "SEA-7"},
+      {"name": "OPW-100", "type": "OPEN WELL", "group": "SEA-7"},
+      {"name": "OPW-150", "type": "OPEN WELL", "group": "SEA-7"},
+      {"name": "OPW-200", "type": "OPEN WELL", "group": "SEA-7"},
+      {"name": "MARUTI-50", "type": "SP", "group": "PROVIEW"},
+      {"name": "MARUTI-100", "type": "SP", "group": "PROVIEW"},
+      {"name": "MARUTI-150", "type": "SP", "group": "PROVIEW"},
+      {"name": "KHATU-50", "type": "SP", "group": "PROVIEW"},
+      {"name": "KHATU-100", "type": "SP", "group": "PROVIEW"},
+      {"name": "KHATU-150", "type": "SP", "group": "PROVIEW"},
+      {"name": "OPW-100", "type": "OPEN WELL", "group": "PROVIEW"},
+      {"name": "OPW-150", "type": "OPEN WELL", "group": "PROVIEW"},
+      {"name": "OPW-200", "type": "OPEN WELL", "group": "PROVIEW"}
+    ]
+  },
+  {"name": "STG", "code": "STG",
+    "models": [
+      {"name": "ESG1131203", "type": "NSP"},
+      {"name": "ESG1131207", "type": "NSP"},
+      {"name": "ECF1131200", "type": "NSP"}
+    ]
+  },
+  {"name": "Sipro", "code": "SIPRO",
+    "models": [
+      {"name": "ESI1131205", "type": "NSP"},
+      {"name": "ESI1131210", "type": "CMB"}
+    ]
+  },
+  {"name": "Shakti Pumps", "code": "SHAKTI PUMPS",
+    "models": [
+      {"name": "NSP-05", "type": "NSP"},
+      {"name": "SCP-1", "type": "CMB"}
+    ]
+  },
+  {"name": "Aarna", "code": "AARNA",
+    "models": [
+      {"name": "CHEETAH", "type": "SP"},
+      {"name": "SAROVAR 1.0 HP", "type": "SP"},
+      {"name": "SAROVAR 0.5 HP", "type": "SP"},
+      {"name": "ROYALE", "type": "SP"},
+      {"name": "LIFTA", "type": "SWJ"},
+      {"name": "SANDMASTER", "type": "CMB"},
+      {"name": "SHAURYA", "type": "CMB"},
+      {"name": "KRISHI", "type": "CMB"},
+      {"name": "PANDUBBI", "type": "OPEN WELL"}
+    ]
+  },
+  {"name": "Maruti", "code": "MARUTI",
+    "models": [
+      {"name": "SHARP", "type": "SP"},
+      {"name": "MINI-CHAMP", "type": "SP"},
+      {"name": "FLOW-MASTER", "type": "SP"},
+      {"name": "ALEX", "type": "SP"},
+      {"name": "PRINCE SENIOR", "type": "SP"},
+      {"name": "JUMBO-MASTER", "type": "SP"}
+    ]
+  },
+  {"name": "OMI", "code": "OMI",
+    "models": [
+      {"name": "JADE V50", "type": "SP"},
+      {"name": "RUBY-50 SPL", "type": "SP"},
+      {"name": "RUBY-50CI", "type": "SP"},
+      {"name": "SAPHIRE 100", "type": "BOOSTER"},
+      {"name": "EMERALD-50-22CI", "type": "CMB"},
+      {"name": "TOPAZ- 0.5 HP", "type": "SWJ"},
+      {"name": "TOPAZ- 1.0 HP", "type": "SWJ"}
+    ]
+  },
+  {"name": "HCG", "code": "HCG",
+    "models": [
+      {"name": "SWJET050 PLUS", "type": "SWJ"},
+      {"name": "SWJET 100 PLUS", "type": "SWJ"},
+      {"name": "HYDRA D2", "type": "SP"},
+      {"name": "HYDRA D1", "type": "SP"},
+      {"name": "PREMIA BOOSTER 051", "type": "BOOSTER"},
+      {"name": "PREMIA BOOSTER 075", "type": "BOOSTER"},
+      {"name": "PREMIA BOOSTER 100", "type": "BOOSTER"},
+      {"name": "AKASH TEER 050", "type": "SP"},
+      {"name": "AKASH TEER 100", "type": "SP"},
+      {"name": "MINI LAUREL-II", "type": "SP"},
+      {"name": "MINI LAUREL-I", "type": "SP"},
+      {"name": "V-Max  II", "type": "SP"}
+    ]
+  },
+  {"name": "Autokarans", "code": "AUTOKARANS",
+    "models": [
+      {"name": "JSP25", "type": "SP"},
+      {"name": "JSP 50", "type": "SP"},
+      {"name": "JCM 70", "type": "CMB"},
+      {"name": "JCM 100Y", "type": "CMB"}
+    ]
+  }
+]

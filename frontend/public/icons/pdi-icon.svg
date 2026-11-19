@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1d4ed8"/>
+  <path d="M104 146h304v40H104zm0 90h304v40H104zm0 90h196v40H104z" fill="#dbeafe"/>
+  <path d="M328 328l44 44 82-94" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/>
+  <text x="256" y="130" fill="#fff" font-family="Arial,sans-serif" font-size="54" font-weight="700" text-anchor="middle">PDI</text>
+</svg>

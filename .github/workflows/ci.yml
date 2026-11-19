@@ -1,0 +1,54 @@
+name: Validate PDI application
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pdi-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests (isolated SQLite)
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: test
+      PDI_DATA_DIR: ${{ runner.temp }}/pdi-test-data
+      GEMINI_API_KEY: ""
+      N8N_WEBHOOK_URL: ""
+      N8N_WEBHOOK_TOKEN: ""
+      GMAIL_SMTP_USERNAME: ""
+      GMAIL_APP_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.lock
+      - run: python -m pip install -r backend/requirements-dev.lock
+      - run: python -m unittest discover -s backend/tests -v
+
+  frontend:
+    name: Frontend build and PWA validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Validate manifest, icons, and service worker
+        run: node scripts/validate-pwa.mjs
+        working-directory: frontend

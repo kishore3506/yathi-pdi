@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: yathi-pdi
+    runtime: docker
+    region: singapore
+    plan: 1c-2g
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health
+    disk:
+      name: yathi-pdi-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PDI_DATA_DIR
+        value: /var/data
+      - key: HOST
+        value: 0.0.0.0
+      - key: MAX_UPLOAD_BYTES
+        value: "26214400"
+      - key: SESSION_MAX_AGE_SECONDS
+        value: "28800"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PUBLIC_APP_ORIGIN
+        sync: false
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: N8N_WEBHOOK_TOKEN
+        sync: false
+      - key: N8N_FROM_EMAIL
+        sync: false
