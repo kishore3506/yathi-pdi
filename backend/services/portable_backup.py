@@ -123,6 +123,17 @@ def create_backup(destination):
                 for row in rows:
                     original_path = Path(row[file_column])
                     if not original_path.is_file():
+                        if table == "report_jobs" and file_column == "legal_pdf_path":
+                            legal_status = conn.execute(
+                                "SELECT legal_status FROM report_jobs WHERE id = ?", (row[id_column],)
+                            ).fetchone()["legal_status"]
+                            if legal_status == "Awaiting Review":
+                                # Generation reserves this path before the checklist is approved.
+                                conn.execute(
+                                    "UPDATE report_jobs SET legal_pdf_path = NULL WHERE id = ?",
+                                    (row[id_column],),
+                                )
+                                continue
                         raise FileNotFoundError(
                             f"Cannot include a referenced {category} file in the backup."
                         )
@@ -138,6 +149,7 @@ def create_backup(destination):
                         "archive_path": archive_path,
                         "source_path": str(original_path),
                     })
+            conn.commit()
         finally:
             conn.close()
 

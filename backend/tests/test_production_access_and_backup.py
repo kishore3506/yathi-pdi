@@ -314,11 +314,24 @@ class PortableBackupTests(unittest.TestCase):
             """,
             (str(source_file),),
         )
+        checklist = Path(self.temp_dir.name) / "pending-j1.xlsx"
+        checklist.write_bytes(b"test J1 workbook")
+        pending_pdf = str(checklist.with_suffix(".pdf"))
+        conn.execute("""
+            INSERT INTO report_jobs (
+                job_code, company_name, product_type, lot_size, status, legal_status, legal_excel_path,
+                legal_pdf_path, created_at, updated_at
+            ) VALUES ('PENDING-J1', 'Havells', 'Pump', 1, 'Awaiting Review', 'Awaiting Review', ?, ?,
+                '2026-01-01', '2026-01-01')
+        """, (str(checklist), pending_pdf))
         conn.commit()
         conn.close()
 
         backup_path = Path(self.temp_dir.name) / "source-backup.zip"
         portable_backup.create_backup(backup_path)
+        conn = database.get_db()
+        self.assertEqual(conn.execute("SELECT legal_pdf_path FROM report_jobs").fetchone()[0], pending_pdf)
+        conn.close()
 
         database.DB_PATH = str(self.target_db_path)
         database.init_db()
@@ -333,7 +346,13 @@ class PortableBackupTests(unittest.TestCase):
         imported_path = conn.execute(
             "SELECT file_path FROM uploaded_requirements"
         ).fetchone()["file_path"]
+        restored_checklist = conn.execute(
+            "SELECT legal_excel_path, legal_pdf_path, legal_status FROM report_jobs"
+        ).fetchone()
         conn.close()
+        self.assertEqual(restored_checklist["legal_status"], "Awaiting Review")
+        self.assertIsNone(restored_checklist["legal_pdf_path"])
+        self.assertEqual(Path(restored_checklist["legal_excel_path"]).read_bytes(), b"test J1 workbook")
         self.assertEqual(admin, "cloud-admin@example.com")
         conn = database.get_db()
         imported_admin = conn.execute(
