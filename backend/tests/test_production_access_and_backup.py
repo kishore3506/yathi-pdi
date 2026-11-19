@@ -207,9 +207,12 @@ class ProductionAccessTests(unittest.TestCase):
                 db.executemany("""
                     INSERT INTO report_jobs
                         (job_code, company_name, product_type, model_name, lot_size, status, created_at, updated_at)
-                    VALUES (?, ?, 'Pump', ?, 1, 'Awaiting Review', '2026-01-01', '2026-01-01')
+                    VALUES (?, ?, 'Pump', ?, 1, 'Awaiting Review', ?, '2026-01-03')
                 """, [
-                    (f"JOB-HAVELLS-{index}", " Havells " if index == 1 else "Havells", f"Model {index}")
+                    (
+                        f"JOB-HAVELLS-{index}", " Havells " if index == 1 else "Havells",
+                        f"Model {index}", f"2026-01-02T{index % 12:02}:42:00",
+                    )
                     for index in range(1, 13)
                 ])
         finally:
@@ -219,6 +222,10 @@ class ProductionAccessTests(unittest.TestCase):
         ) as client:
             stats = client.get("/api/dashboard/stats").json()
             self.assertEqual(stats["recent_customers"], ["Havells", "Crompton"])
+            self.assertEqual(stats["recent_customer_activity"][0], {
+                "company_name": "Havells",
+                "created_at": "2026-01-02T11:42:00",
+            })
             models = client.get("/api/dashboard/customer-jobs", params={"customer": "HAVELLS"}).json()
             self.assertEqual([job["model_name"] for job in models], [f"Model {index}" for index in range(12, 0, -1)])
             self.assertEqual(client.get("/api/dashboard/customer-jobs", params={"customer": "KSB"}).json(), [])

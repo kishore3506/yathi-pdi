@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import CustomerInspectionReports from './CustomerInspectionReports';
 
+const inspectionDateTime = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
 export default function DashboardPage({ setActiveTab, setSelectedJobId, customer, setCustomer }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,11 +115,18 @@ export default function DashboardPage({ setActiveTab, setSelectedJobId, customer
         </div>
         {loading ? (
           <p className="p-6 text-center text-sm text-gray-500">Loading recent reports...</p>
-        ) : stats?.recent_customers?.length ? (
+        ) : stats?.recent_customer_activity?.length ? (
           <ul className="divide-y divide-gray-200">
-            {stats.recent_customers.map((name) => (
+            {stats.recent_customer_activity.map(({ company_name: name, created_at }) => (
               <li key={name} className="flex items-center justify-between gap-4 px-5 py-3">
-                <span className="text-sm font-semibold text-gray-900">{name}</span>
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                  <span className="text-sm font-semibold text-gray-900">{name}</span>
+                  {created_at && Number.isFinite(Date.parse(created_at)) && (
+                    <time dateTime={created_at} className="text-xs tabular-nums text-gray-600">
+                      {inspectionDateTime.format(new Date(created_at))}
+                    </time>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setCustomer(name)}

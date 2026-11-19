@@ -38,14 +38,21 @@ async def get_dashboard_stats():
         LIMIT 10
     """)
     recent_jobs = [dict(r) for r in cursor.fetchall()]
-    recent_customers = [
-        row["company_name"]
+    recent_customer_activity = [
+        dict(row)
         for row in cursor.execute("""
-            SELECT company_name FROM report_jobs
-            WHERE id IN (
-                SELECT MAX(id) FROM report_jobs GROUP BY LOWER(TRIM(company_name))
+            WITH inspections AS (
+                SELECT company_name, created_at, id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY LOWER(TRIM(company_name))
+                           ORDER BY julianday(created_at) DESC, id DESC
+                       ) AS inspection_rank
+                FROM report_jobs
             )
-            ORDER BY id DESC
+            SELECT TRIM(company_name) AS company_name, created_at
+            FROM inspections
+            WHERE inspection_rank = 1
+            ORDER BY julianday(created_at) DESC, id DESC
         """)
     ]
     conn.close()
@@ -57,7 +64,8 @@ async def get_dashboard_stats():
         "awaiting_printing": awaiting_printing,
         "awaiting_email": awaiting_email,
         "recent_jobs": recent_jobs,
-        "recent_customers": recent_customers,
+        "recent_customers": [row["company_name"] for row in recent_customer_activity],
+        "recent_customer_activity": recent_customer_activity,
     }
 
 
