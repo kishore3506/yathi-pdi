@@ -284,6 +284,13 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
         return;
       }
 
+      if (isCrompton && updatedJob.reports?.length === 2 &&
+        !['Approved', 'Emailed'].includes(currentReport.status)) {
+        initReportForm(updatedJob.reports.find(report => report.id === currentReport.id));
+        setIsEmailOpen(true);
+        return;
+      }
+
       if (
         String(updatedJob.company_name).trim().toLowerCase() === 'havells' &&
         updatedJob.legal_status !== 'Agreed'
@@ -448,7 +455,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
               className="flex items-center space-x-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg shadow transition"
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Send Email</span>
+              <span>{isCrompton ? 'Scan & send email' : 'Send Email'}</span>
             </button>
           </div>
         </div>

@@ -1,8 +1,9 @@
 from .v0001_users_and_report_revisions import upgrade
 from .v0002_excel_backup import upgrade as upgrade_excel_backup
+from .v0003_crompton_email_scans import upgrade as upgrade_crompton_email_scans
 
 
-MIGRATIONS = ((1, upgrade), (2, upgrade_excel_backup))
+MIGRATIONS = ((1, upgrade), (2, upgrade_excel_backup), (3, upgrade_crompton_email_scans))
 
 
 def run_migrations(conn):

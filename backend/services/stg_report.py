@@ -72,14 +72,14 @@ REPORT_FIELDS = {
 }
 
 
-def normalize_photo(content):
+def normalize_photo(content, *, max_edge=1400):
     """Decode a supported image, apply orientation, and store a bounded JPEG without EXIF."""
     try:
         with Image.open(BytesIO(content), formats=("JPEG", "PNG", "WEBP")) as source:
             if source.width * source.height > 30_000_000:
                 raise ValueError("Choose a photo no larger than 30 megapixels.")
             image = ImageOps.exif_transpose(source).convert("RGBA")
-            image.thumbnail((1400, 1400), Image.Resampling.LANCZOS)
+            image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
             background = Image.new("RGB", image.size, "white")
             background.paste(image, mask=image.getchannel("A"))
             buffer = BytesIO()

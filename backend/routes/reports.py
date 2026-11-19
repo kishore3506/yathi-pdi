@@ -24,7 +24,7 @@ try:
     from ..services.email_service import EmailService
     from ..services.excel_filler import ExcelFiller
     from ..services.excel_reader import ExcelReader
-    from ..services import crompton_report
+    from ..services import crompton_email_scans, crompton_report
     from ..services.template_matcher import TemplateMatcher
     from ..services.stg_report import (
         DOCX_MIME_TYPE, MAX_PHOTO_BYTES, PHOTO_SLOTS, normalize_photo, read_photo, write_report as write_stg_report,
@@ -43,7 +43,7 @@ except (ImportError, ValueError):
     from services.email_service import EmailService
     from services.excel_filler import ExcelFiller
     from services.excel_reader import ExcelReader
-    from services import crompton_report
+    from services import crompton_email_scans, crompton_report
     from services.template_matcher import TemplateMatcher
     from services.stg_report import (
         DOCX_MIME_TYPE, MAX_PHOTO_BYTES, PHOTO_SLOTS, normalize_photo, read_photo, write_report as write_stg_report,
@@ -635,6 +635,33 @@ async def print_job(job_id: int):
         status_code=410,
         detail="Cloud printing is unavailable. Open or download the PDF and print from your device.",
     )
+
+@router.get("/jobs/{job_id}/email-scans")
+def list_email_scans(job_id: int):
+    return crompton_email_scans.list_scans(job_id)
+
+
+@router.post("/jobs/{job_id}/email-scans", status_code=201)
+async def upload_email_scan(job_id: int, image: UploadFile = File(...)):
+    try:
+        content = await image.read(crompton_email_scans.MAX_SCAN_BYTES + 1)
+    finally:
+        await image.close()
+    if len(content) > crompton_email_scans.MAX_SCAN_BYTES:
+        raise HTTPException(413, "Choose an image of 8 MB or less.")
+    return await run_in_threadpool(crompton_email_scans.add_scan, job_id, content)
+
+
+@router.get("/jobs/{job_id}/email-scans/{scan_id}")
+def open_email_scan(job_id: int, scan_id: int):
+    return Response(crompton_email_scans.get_scan(job_id, scan_id), media_type="image/jpeg")
+
+
+@router.delete("/jobs/{job_id}/email-scans/{scan_id}", status_code=204)
+def delete_email_scan(job_id: int, scan_id: int):
+    crompton_email_scans.remove_scan(job_id, scan_id)
+    return Response(status_code=204)
+
 
 @router.post("/email")
 async def send_reports_email(req: EmailRequest):

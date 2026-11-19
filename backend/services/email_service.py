@@ -12,10 +12,12 @@ from typing import Dict, Any, List, Optional
 
 try:
     from ..database import get_db
+    from .crompton_email_scans import scan_filename
     from .report_generator import ReportGenerator
     from .stg_report import DOCX_MIME_TYPE
 except (ImportError, ValueError):
     from database import get_db
+    from services.crompton_email_scans import scan_filename
     from services.report_generator import ReportGenerator
     from services.stg_report import DOCX_MIME_TYPE
 
@@ -230,6 +232,7 @@ class EmailService:
             }
 
         is_havells_job = str(job["company_name"]).strip().casefold() == "havells"
+        is_crompton_job = str(job["company_name"]).strip().casefold() == "crompton"
         customer_names = {
             str(model_job["company_name"]).strip().casefold()
             for model_job in batch_jobs
@@ -244,7 +247,7 @@ class EmailService:
 
         model_job_ids = [model_job["id"] for model_job in batch_jobs]
         placeholders = ",".join(["?"] * len(model_job_ids))
-        if len(batch_jobs) > 1 or not report_ids:
+        if is_crompton_job or len(batch_jobs) > 1 or not report_ids:
             cursor.execute(
                 f"SELECT * FROM generated_reports WHERE job_id IN ({placeholders}) ORDER BY job_id, unit_index",
                 model_job_ids,
@@ -264,7 +267,7 @@ class EmailService:
                 "message": "No generated reports were found to attach."
             }
 
-        requires_approval = is_havells_job or len(batch_jobs) > 1
+        requires_approval = is_havells_job or is_crompton_job or len(batch_jobs) > 1
         if requires_approval:
             for model_job in batch_jobs:
                 cursor.execute("""
@@ -284,9 +287,9 @@ class EmailService:
                 ):
                     conn.close()
                     message = (
-                        "Approve every PDI report for every model before emailing the inspection batch."
-                        if len(batch_jobs) > 1
-                        else "Approve every PDI report for this model before agreeing to the J1 legal checklist and emailing."
+                        "Approve every PDI report for this model before agreeing to the J1 legal checklist and emailing."
+                        if is_havells_job and len(batch_jobs) == 1
+                        else "Approve every PDI report for every model before emailing the inspection batch."
                     )
                     return {
                         "success": False,
@@ -319,6 +322,9 @@ class EmailService:
                         ),
                     }
 
+        scans = cursor.execute(
+            "SELECT id, image FROM crompton_email_scans WHERE job_id = ? ORDER BY id", (job_id,)
+        ).fetchall() if is_crompton_job else []
         conn.close()
         report_counts_by_job: Dict[int, int] = {model_job_id: 0 for model_job_id in model_job_ids}
         for report in reports:
@@ -346,6 +352,11 @@ class EmailService:
                         "content_type": "application/pdf",
                         "content": legal_pdf.read(),
                     })
+        attachments.extend({
+            "filename": scan_filename(scan["id"]),
+            "content_type": "image/jpeg",
+            "content": scan["image"],
+        } for scan in scans)
 
         email_status = "Failed"
         resp_data_str = ""
@@ -497,6 +508,7 @@ class EmailService:
                     "recipient": target_email,
                     "status": email_status,
                     "batch_job_ids": model_job_ids,
+                    "scan_ids": [scan["id"] for scan in scans],
                 }),
                 now_str,
             ))
@@ -516,6 +528,7 @@ class EmailService:
             "customer_email": target_email,
             "subject": email_subject,
             "attachments_count": len(attachments),
+            "scan_count": len(scans),
             "model_count": model_count,
             "response": resp_data_str,
             "provider": self.provider

@@ -296,6 +296,21 @@ export const api = {
     });
     return parseApiResponse(res, 'Email request');
   },
+  listEmailScans: async (jobId) => {
+    const res = await apiFetch(`${API_BASE}/reports/jobs/${jobId}/email-scans`);
+    return parseApiResponse(res, 'Load email images');
+  },
+  uploadEmailScan: async (jobId, image) => {
+    const form = new FormData();
+    form.append('image', image, image.name || 'capture.jpg');
+    const res = await apiFetch(`${API_BASE}/reports/jobs/${jobId}/email-scans`, { method: 'POST', body: form });
+    return parseApiResponse(res, 'Add email image');
+  },
+  getEmailScanUrl: (jobId, scanId) => `${API_BASE}/reports/jobs/${jobId}/email-scans/${scanId}`,
+  deleteEmailScan: async (jobId, scanId) => {
+    const res = await apiFetch(api.getEmailScanUrl(jobId, scanId), { method: 'DELETE' });
+    return parseApiResponse(res, 'Remove email image');
+  },
 
   // Download URLs
   getExcelDownloadUrl: (reportId) => `${API_BASE}/reports/${reportId}/download/excel`,

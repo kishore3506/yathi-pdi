@@ -85,7 +85,7 @@ APPLICATION_REFERENCE = {
         "S.N. 36 Discharge: 2711/720 - - - 2716/700; Maximum Current: 2.3 - - - 2.4 A; Maximum Power: 524 - - - 528 W.",
         "S.N. 36 Overall Efficiency readings default to N/A. Preset readings should be reviewed against the actual lot.",
     ],
-    "email_delivery": "The batch email requires all selected reports to be approved. It attaches STG reports as Word files and other PDI reports as PDFs. Havells also attaches each model's agreed J1 checklist PDF.",
+    "email_delivery": "The batch email requires all selected reports to be approved. It attaches STG reports as Word files and other PDI reports as PDFs. Havells also attaches each model's agreed J1 checklist PDF. After approving both Crompton reports, choose Scan & send email, then use the camera or upload image files. Any images saved for that inspection are attached with both PDFs.",
     "roles": {
         "inspector": "Generate and edit inspection drafts.",
         "approver": "Review and edit reports, approve them, agree Havells J1 checklists, and send approved batch email.",

@@ -161,7 +161,7 @@ def _required_role(path: str, method: str):
         return {"inspector", "approver", "administrator"}
     if path.endswith("/approve") or path.endswith("/legal/agree"):
         return {"approver", "administrator"}
-    if path == "/api/reports/email":
+    if path == "/api/reports/email" or (path.startswith("/api/reports/jobs/") and "/email-scans" in path):
         return {"approver", "administrator"}
     if path.startswith("/api/chat/") or path == "/api/chat":
         return {"inspector", "approver", "administrator"}

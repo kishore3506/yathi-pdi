@@ -3,14 +3,19 @@ import smtplib
 import sys
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+from fastapi import HTTPException
+from PIL import Image
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 import database
+from services import crompton_email_scans
 from services.email_service import EmailService
 
 
@@ -186,6 +191,49 @@ class EmailServiceTests(unittest.TestCase):
         smtp.login.assert_called_once_with("sender@example.com", "test-app-password")
         smtp.send_message.assert_called_once()
         self.assertTrue(result["success"])
+
+    def test_crompton_sends_both_approved_reports_and_saved_images(self):
+        conn = database.get_db()
+        with conn:
+            conn.execute("UPDATE report_jobs SET total_reports = 2 WHERE id = ?", (self.job_id,))
+            second_id = conn.execute("""
+                INSERT INTO generated_reports (
+                    job_id, report_code, unit_index, excel_path, status, report_data_json, created_at, updated_at
+                )
+                SELECT job_id, 'REPORT-TEST-2', 2, excel_path, 'Awaiting Review', '{}', created_at, updated_at
+                FROM generated_reports WHERE id = ?
+            """, (self.report_id,)).lastrowid
+        photo = BytesIO()
+        Image.new("RGB", (16, 16)).save(photo, "PNG")
+
+        with self.assertRaises(HTTPException) as pending:
+            crompton_email_scans.add_scan(self.job_id, photo.getvalue())
+        self.assertEqual(pending.exception.status_code, 409)
+        recipient = {"job_id": self.job_id, "to_email": "customer@example.com", "report_ids": [self.report_id]}
+        self.assertFalse(self.create_service().send_customer_email(**recipient)["success"])
+
+        with conn:
+            conn.execute("UPDATE generated_reports SET status = 'Approved' WHERE id = ?", (second_id,))
+        conn.close()
+        scan = crompton_email_scans.add_scan(self.job_id, photo.getvalue())
+        dropped_scan = crompton_email_scans.add_scan(self.job_id, photo.getvalue())
+        crompton_email_scans.remove_scan(self.job_id, dropped_scan["id"])
+        self.assertEqual(crompton_email_scans.list_scans(self.job_id), [scan])
+
+        smtp = Mock()
+        with patch("services.email_service.ReportGenerator.convert_to_pdf", return_value=self.report_pdf_path) as convert, \
+                patch("services.email_service.smtplib.SMTP") as smtp_factory:
+            smtp_factory.return_value.__enter__.return_value = smtp
+            result = self.create_service().send_customer_email(**recipient)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["attachments_count"], 3)
+        self.assertEqual(result["scan_count"], 1)
+        self.assertEqual([call.args[0] for call in convert.call_args_list], [self.report_id, second_id])
+        sent_attachments = list(smtp.send_message.call_args.args[0].iter_attachments())
+        self.assertEqual([item.get_content_type() for item in sent_attachments],
+                         ["application/pdf", "application/pdf", "image/jpeg"])
+        self.assertEqual(sent_attachments[-1].get_filename(), scan["filename"])
+        self.assertEqual(sent_attachments[-1].get_content(), crompton_email_scans.get_scan(self.job_id, scan["id"]))
 
     def test_rejects_from_address_not_configured_as_gmail_alias(self):
         smtp = Mock()

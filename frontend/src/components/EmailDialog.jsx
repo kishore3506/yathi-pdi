@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { Mail, CheckCircle2, AlertTriangle, Loader2, X, Paperclip, Send } from 'lucide-react';
+import { Mail, CheckCircle2, AlertTriangle, Camera, ImagePlus, Loader2, X, Paperclip, Send } from 'lucide-react';
+import ScanCameraDialog from './ScanCameraDialog';
 
 export default function EmailDialog({
   isOpen,
@@ -21,9 +22,15 @@ export default function EmailDialog({
   const [skipping, setSkipping] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [scans, setScans] = useState(null);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [scanRefresh, setScanRefresh] = useState(0);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const emailModelJobs = job?.model_jobs?.length ? job.model_jobs : (job ? [job] : []);
   const isHavellsJob = String(job?.company_name || '').trim().toLowerCase() === 'havells';
-  const hasApprovalGate = isHavellsJob || emailModelJobs.length > 1;
+  const isCromptonJob = String(job?.company_name || '').trim().toLowerCase() === 'crompton';
+  const hasApprovalGate = isHavellsJob || isCromptonJob || emailModelJobs.length > 1;
   const pendingPdiJob = hasApprovalGate && emailModelJobs.find(modelJob => {
     const currentReports = Number(modelJob.id) === Number(job.id) ? (job.reports || []) : [];
     const approvedCount = currentReports.length
@@ -46,6 +53,20 @@ export default function EmailDialog({
     (total, modelJob) => total + Number(modelJob.total_reports || modelJob.reports?.length || 0),
     0
   ) || job?.reports?.length || job?.total_reports || 1;
+  const scanJobId = isOpen && isCromptonJob && !hasPendingPdiReports ? job.id : null;
+
+  useEffect(() => {
+    setScans(null);
+    setScanError('');
+    if (!scanJobId) return;
+    let active = true;
+    api.listEmailScans(scanJobId).then(items => {
+      if (active) setScans(items);
+    }).catch(err => {
+      if (active) setScanError(err.message);
+    });
+    return () => { active = false; };
+  }, [scanJobId, scanRefresh]);
 
   useEffect(() => {
     if (!isOpen || !job) return;
@@ -96,8 +117,32 @@ export default function EmailDialog({
 
   if (!isOpen || !job) return null;
 
+  const updateScans = async (operation) => {
+    setScanBusy(true);
+    setScanError('');
+    try {
+      await operation();
+    } catch (err) {
+      setScanError(err.message);
+    } finally {
+      setScanBusy(false);
+    }
+  };
+
+  const addImages = (images) => updateScans(async () => {
+    for (const image of images) {
+      const saved = await api.uploadEmailScan(scanJobId, image);
+      setScans(current => [...current, saved]);
+    }
+  });
+
+  const removeImage = (scanId) => updateScans(async () => {
+    await api.deleteEmailScan(scanJobId, scanId);
+    setScans(current => current.filter(scan => scan.id !== scanId));
+  });
+
   const handleSendEmail = async () => {
-    if (workflowBlockMessage) return;
+    if (workflowBlockMessage || (scanJobId && (!scans || scanBusy))) return;
     if (!emailConfigured) {
       setError(emailProvider === 'n8n'
         ? 'Configure the company n8n webhook and sender in the hosting environment.'
@@ -159,6 +204,8 @@ export default function EmailDialog({
         
         <button
           onClick={onClose}
+          disabled={scanBusy || sending || skipping}
+          aria-label="Close email dialog"
           className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
         >
           <X className="w-5 h-5" />
@@ -241,9 +288,58 @@ export default function EmailDialog({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="space-y-2.5">
-                <p className="text-sm font-medium text-gray-700">
-                  Would you like to send the official approved PDI reports to the customer now?
-                </p>
+                {scanJobId ? (
+                  <section className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3" aria-labelledby="email-scans-heading">
+                    <h4 id="email-scans-heading" className="text-sm font-bold text-gray-900">Images to attach</h4>
+                    {scanError && <p role="alert" className="text-xs text-red-700">{scanError}</p>}
+                    {scans === null ? (
+                      scanError ? <button type="button" onClick={() => setScanRefresh(value => value + 1)}
+                        className="text-xs font-semibold text-blue-800 underline">Retry loading images</button> :
+                        <p role="status" className="text-xs text-gray-600">Loading saved images…</p>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={scanBusy || sending || skipping || scans.length >= 10}
+                            onClick={() => setCameraOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-blue-700 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                            <Camera className="h-4 w-4" /> Scan with camera
+                          </button>
+                          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-800 focus-within:ring-2 focus-within:ring-blue-600 has-[:disabled]:cursor-default has-[:disabled]:opacity-50">
+                            <ImagePlus className="h-4 w-4" /> Upload images
+                            <input type="file" multiple accept="image/jpeg,image/png,image/webp"
+                              disabled={scanBusy || sending || skipping || scans.length >= 10} className="sr-only"
+                              onChange={event => {
+                                const files = Array.from(event.target.files);
+                                event.target.value = '';
+                                if (files.length) addImages(files);
+                              }} />
+                          </label>
+                        </div>
+                        {scanBusy && <p role="status" className="text-xs text-gray-600">Updating images…</p>}
+                        {scans.length > 0 && <ul className="space-y-1.5">
+                          {scans.map(scan => (
+                            <li key={scan.id} className="flex items-center gap-2 rounded-md border border-blue-100 bg-white p-1.5 text-xs">
+                              <a href={api.getEmailScanUrl(job.id, scan.id)} target="_blank" rel="noreferrer" className="flex min-w-0 flex-1 items-center gap-2 text-blue-800">
+                                <img src={api.getEmailScanUrl(job.id, scan.id)} alt="" className="h-10 w-10 rounded object-contain" />
+                                <span>{scan.filename}</span>
+                              </a>
+                              <button type="button" disabled={scanBusy || sending || skipping} onClick={() => removeImage(scan.id)}
+                                aria-label={`Remove ${scan.filename}`} className="rounded p-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>}
+                      </>
+                    )}
+                    {cameraOpen && <ScanCameraDialog onClose={() => setCameraOpen(false)} onCapture={image => {
+                      setCameraOpen(false);
+                      addImages([image]);
+                    }} />}
+                  </section>
+                ) : !workflowBlockMessage && (
+                  <p className="text-sm font-medium text-gray-700">Would you like to send the official approved PDI reports to the customer now?</p>
+                )}
 
                 <div className="space-y-2.5 rounded-lg border bg-gray-50 p-3">
                   <div>
@@ -321,7 +417,7 @@ export default function EmailDialog({
                     <span className="flex items-center space-x-1">
                       <Paperclip className="h-4 w-4 text-gray-400" />
                       <span>
-                        Attachments: <b>{reportCount} PDI Report(s){isHavellsJob ? ` + ${emailModelJobs.length} J1 legal PDF(s)` : ''}</b>
+                        Attachments: <b>{reportCount} PDI Report(s){isHavellsJob ? ` + ${emailModelJobs.length} J1 legal PDF(s)` : ''}{scans?.length ? ` + ${scans.length} image(s)` : ''}</b>
                       </span>
                     </span>
                     <span className="font-mono text-gray-500">{job.job_code}</span>
@@ -334,7 +430,7 @@ export default function EmailDialog({
               <button
                 type="button"
                 onClick={handleSkip}
-                disabled={sending || skipping}
+                disabled={sending || skipping || scanBusy}
                 className="rounded-lg px-3 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               >
                 {skipping ? 'Skipping...' : 'Skip for Now'}
@@ -343,7 +439,7 @@ export default function EmailDialog({
               <button
                 type="button"
                 onClick={handleSendEmail}
-                disabled={sending || skipping || Boolean(workflowBlockMessage)}
+                disabled={sending || skipping || Boolean(workflowBlockMessage) || Boolean(scanJobId && (!scans || scanBusy))}
                 className="flex items-center space-x-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
