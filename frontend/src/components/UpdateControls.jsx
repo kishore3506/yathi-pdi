@@ -5,16 +5,20 @@ export default function UpdateControls() {
   const [chunkRecoveryNeeded, setChunkRecoveryNeeded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [serviceWorkerUnavailable, setServiceWorkerUnavailable] = useState(false);
   const registrationRef = useRef(null);
   const applyingRef = useRef(false);
 
   useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)');
     const handleDirty = event => setHasUnsavedChanges(Boolean(event.detail));
     const handleInstallPrompt = event => {
       event.preventDefault();
-      setInstallPrompt(event);
+      if (!standalone.matches && navigator.standalone !== true) setInstallPrompt(event);
+    };
+    const handleInstalled = () => setInstallPrompt(null);
+    const handleDisplayMode = event => {
+      if (event.matches) handleInstalled();
     };
     const handleControllerChange = () => {
       if (applyingRef.current) window.location.reload();
@@ -26,6 +30,8 @@ export default function UpdateControls() {
 
     window.addEventListener('pdi:dirty-change', handleDirty);
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+    window.addEventListener('appinstalled', handleInstalled);
+    standalone.addEventListener('change', handleDisplayMode);
     window.addEventListener('vite:preloadError', handlePreloadError);
     navigator.serviceWorker?.addEventListener('controllerchange', handleControllerChange);
 
@@ -73,6 +79,8 @@ export default function UpdateControls() {
     return () => {
       window.removeEventListener('pdi:dirty-change', handleDirty);
       window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
+      window.removeEventListener('appinstalled', handleInstalled);
+      standalone.removeEventListener('change', handleDisplayMode);
       window.removeEventListener('vite:preloadError', handlePreloadError);
       navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
       window.removeEventListener('focus', checkForUpdates);
@@ -95,13 +103,14 @@ export default function UpdateControls() {
   };
 
   const install = async () => {
-    if (!installPrompt) {
-      setInstallHelpOpen(value => !value);
-      return;
+    try {
+      await installPrompt.prompt();
+    } finally {
+      setInstallPrompt(null);
     }
-    await installPrompt.prompt();
-    setInstallPrompt(null);
   };
+
+  if (!updateAvailable && !chunkRecoveryNeeded && !serviceWorkerUnavailable && !installPrompt) return null;
 
   return (
     <div className="fixed inset-x-0 top-0 z-[70] flex flex-col items-center gap-2 px-3 pt-2">
@@ -127,18 +136,11 @@ export default function UpdateControls() {
           App updates are unavailable. Reconnect and reload this page.
         </p>
       )}
-      <div className="self-end">
+      {installPrompt && <div className="self-end">
         <button type="button" onClick={install} className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
           Install app
         </button>
-        {installHelpOpen && (
-          <div className="mt-2 max-w-xs rounded-xl border bg-white p-3 text-xs leading-5 text-slate-700 shadow-lg">
-            <strong>Install this PWA</strong>
-            <p className="mt-1">Android Chrome: open the browser menu and choose “Install app” or “Add to Home screen”. Windows Chrome or Edge: use the install icon in the address bar, or choose the browser’s “Install this site as an app” menu option.</p>
-            <p className="mt-2">Menu wording varies by browser. Keep the device online to use reports and receive updates.</p>
-          </div>
-        )}
-      </div>
+      </div>}
     </div>
   );
 }
