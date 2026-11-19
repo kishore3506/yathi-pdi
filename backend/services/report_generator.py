@@ -18,6 +18,7 @@ try:
     from .stg_report import TEMPLATE_NAME as STG_TEMPLATE_NAME, write_report as write_stg_report
     from .ksb_report import SHEET_NAME as KSB_SHEET_NAME, write_ksb_pdf
     from . import crompton_report
+    from .havells_pdf import write_havells_pdf
 except (ImportError, ValueError):
     from database import get_db
     from services.excel_filler import ExcelFiller
@@ -27,6 +28,7 @@ except (ImportError, ValueError):
     from services.stg_report import TEMPLATE_NAME as STG_TEMPLATE_NAME, write_report as write_stg_report
     from services.ksb_report import SHEET_NAME as KSB_SHEET_NAME, write_ksb_pdf
     from services import crompton_report
+    from services.havells_pdf import write_havells_pdf
 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
@@ -288,13 +290,13 @@ class ReportGenerator:
         return zip_path
 
     def convert_to_pdf(self, report_id: int) -> str:
-        """
-        Converts a report to PDF. Tries LibreOffice headless first;
-        if not present, generates a clean PDF using ReportLab.
-        """
+        """Convert a saved report to PDF using its customer-specific format."""
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM generated_reports WHERE id = ?", (report_id,))
+        cursor.execute("""
+            SELECT r.*, j.company_name FROM generated_reports r
+            JOIN report_jobs j ON j.id = r.job_id WHERE r.id = ?
+        """, (report_id,))
         rep = cursor.fetchone()
         conn.close()
         if not rep:
@@ -305,15 +307,18 @@ class ReportGenerator:
             raise NotImplementedError("Download the STG Word document to print it.")
         pdf_path = os.path.splitext(excel_path)[0] + ".pdf"
 
-        report_data = self.reader.read_report(excel_path)
-        if report_data["primary_sheet"] == SHEET_NAME:
-            write_falcon_pdf(report_data, pdf_path)
-        elif report_data["primary_sheet"] == KSB_SHEET_NAME:
-            write_ksb_pdf(report_data, pdf_path)
-        elif report_data["primary_sheet"] == crompton_report.SHEET_NAME:
-            crompton_report.write_pdf(report_data, pdf_path)
+        if rep["company_name"].strip().casefold() == "havells":
+            write_havells_pdf(excel_path, pdf_path)
         else:
-            self._generate_pdf_reportlab(report_data, pdf_path, rep["report_code"], rep["unit_index"])
+            report_data = self.reader.read_report(excel_path)
+            if report_data["primary_sheet"] == SHEET_NAME:
+                write_falcon_pdf(report_data, pdf_path)
+            elif report_data["primary_sheet"] == KSB_SHEET_NAME:
+                write_ksb_pdf(report_data, pdf_path)
+            elif report_data["primary_sheet"] == crompton_report.SHEET_NAME:
+                crompton_report.write_pdf(report_data, pdf_path)
+            else:
+                self._generate_pdf_reportlab(report_data, pdf_path, rep["report_code"], rep["unit_index"])
 
         conn = get_db()
         try:
@@ -330,7 +335,7 @@ class ReportGenerator:
         report_code: str,
         unit_index: int = 1,
     ):
-        """Generates a high-quality PDF replica of the Havells PDI report."""
+        """Generate the generic PDF layout for workbooks without a dedicated exporter."""
         doc = SimpleDocTemplate(
             output_pdf,
             pagesize=landscape(A4),

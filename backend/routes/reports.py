@@ -558,7 +558,7 @@ async def download_excel(report_id: int):
 async def download_pdf(report_id: int):
     """Download individual PDF report copy."""
     try:
-        pdf_path = generator.convert_to_pdf(report_id)
+        pdf_path = await run_in_threadpool(generator.convert_to_pdf, report_id)
     except NotImplementedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not os.path.exists(pdf_path):
@@ -574,7 +574,7 @@ async def download_pdf(report_id: int):
 async def open_pdf(report_id: int):
     """Open a generated PDF in the user's browser for device-side printing."""
     try:
-        pdf_path = generator.convert_to_pdf(report_id)
+        pdf_path = await run_in_threadpool(generator.convert_to_pdf, report_id)
     except NotImplementedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if not os.path.isfile(pdf_path):

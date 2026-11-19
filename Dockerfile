@@ -16,6 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PDI_DATA_DIR=/var/data
 
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice-calc fonts-crosextra-carlito \
+    && rm -rf /var/lib/apt/lists/*
 COPY backend/requirements.lock ./backend/requirements.lock
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r backend/requirements.lock

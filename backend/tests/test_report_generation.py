@@ -371,17 +371,24 @@ class ReportGenerationTests(unittest.TestCase):
                     " ".join((page.extract_text() or "").split())
                     for page in PdfReader(second_report_pdf).pages
                 )
-                self.assertIn("Observation 6 7 8 9 10", second_pdf_text)
+                self.assertIn("Pump - Pre-dispatch Inspection Report", second_pdf_text)
+                self.assertRegex(second_pdf_text, r"\b6\s+7\s+8\s+9\s+10\b")
+                for preset in ("0.02 mm", "2952", "0.84", "2711/720", "2.4", "SST Hrs Check"):
+                    self.assertIn(preset, second_pdf_text)
+                self.assertNotIn("PA001", second_pdf_text)
 
                 first_report = result["reports"][0]
                 pdf_path = ReportGenerator().convert_to_pdf(first_report["id"])
-                workbook = openpyxl.load_workbook(first_report["excel_path"])
-                sheet = workbook["Surface Pump"]
-                sheet["G29"] = "Updated bearing reading"
-                for column, value in zip("GHIJK", ("sample G", "sample H", "sample I", "sample J", "sample K")):
-                    sheet[f"{column}44"] = value
-                workbook.save(first_report["excel_path"])
-                workbook.close()
+                ExcelFiller().populate_template(
+                    template_file_path=first_report["excel_path"],
+                    output_file_path=first_report["excel_path"],
+                    template_id=template_id,
+                    data={"company_name": "Havells"},
+                    observation_overrides={
+                        "29": {"G": "Updated bearing reading"},
+                        "44": {column: f"sample {column}" for column in "GHIJK"},
+                    },
+                )
 
                 refreshed_pdf = ReportGenerator().convert_to_pdf(first_report["id"])
                 pdf_text = " ".join(
@@ -389,7 +396,7 @@ class ReportGenerationTests(unittest.TestCase):
                     for page in PdfReader(refreshed_pdf).pages
                 )
                 self.assertEqual(refreshed_pdf, pdf_path)
-                self.assertIn("Observation 1 2 3 4 5", pdf_text)
+                self.assertRegex(pdf_text, r"\b1\s+2\s+3\s+4\s+5\b")
                 for value in (
                     "Updated bearing reading", "Bearing Noise", "< 65 Dba",
                     "sample G", "sample H", "sample I", "sample J", "sample K",

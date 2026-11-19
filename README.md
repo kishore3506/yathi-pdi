@@ -78,6 +78,8 @@ Open `http://localhost:5173` for frontend development or `http://127.0.0.1:8000`
 
 With `APP_ENV=development` on the same PC, the app opens directly on the dashboard and provides a Backups page. Hosted deployments use employee sign-in and require administrator setup.
 
+Havells PDF export prints the Surface Pump worksheet through LibreOffice Calc. For a portable or non-default installation, set `PDI_HAVELLS_SOFFICE` to the full path of the LibreOffice command-line executable.
+
 ### Gemini API
 
 Create an API key in [Google AI Studio](https://aistudio.google.com/app/apikey), then put it in `backend/.env` or set it in the process environment. Do not commit or share the key. Example `backend/.env`:

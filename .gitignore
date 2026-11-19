@@ -15,6 +15,7 @@ backend/generated_reports/
 backend/user_templates/
 backend/logs/
 backend/backups/
+backend/havells-pdf-profile/
 .local-data/
 npm-cache/
 deployment/releases/
