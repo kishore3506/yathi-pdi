@@ -92,14 +92,16 @@ export default function ChatAssistant({ screen, jobId, reportId }) {
 
     const models = pendingDraft.models.map((model) => ({
       ...model,
-      lot_size: Number(String(model.lot_size).replace(/,/g, '').trim()),
+      lot_size: String(model.lot_size ?? '').trim()
+        ? Number(String(model.lot_size).replace(/,/g, '').trim())
+        : NaN,
     }));
     const incompleteModel = models.findIndex((model) =>
       !model.model_name.trim()
       || !model.product_number.trim()
       || !model.po_number.trim()
       || !Number.isInteger(model.lot_size)
-      || model.lot_size < 1
+      || model.lot_size < (companyName.toLowerCase() === 'crompton' ? 0 : 1)
       || model.lot_size > 1000000
     );
     if (incompleteModel !== -1) {
@@ -415,7 +417,7 @@ export default function ChatAssistant({ screen, jobId, reportId }) {
                         {label}
                         <input
                           type={field === 'lot_size' ? 'number' : 'text'}
-                          min={field === 'lot_size' ? 1 : undefined}
+                          min={field === 'lot_size' ? (pendingDraft.company_name.trim().toLowerCase() === 'crompton' ? 0 : 1) : undefined}
                           value={model[field]}
                           onChange={(event) => updateDraftModel(index, field, event.target.value)}
                           disabled={isSending}

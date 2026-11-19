@@ -369,6 +369,8 @@ class GeminiService:
             if not raw_text:
                 raise RuntimeError("Gemini returned no text for the extraction result")
             extracted = json.loads(raw_text)
+            customer = str(extracted.get("company_name")).strip().casefold()
+            minimum_lot = 0 if customer in {"crompton", "cgcel"} else 1
 
             model_items = extracted.get("model_items")
             if not isinstance(model_items, list):
@@ -388,7 +390,7 @@ class GeminiService:
                 quantity = item.get("lot_size")
                 if isinstance(quantity, str) and re.fullmatch(r"\d[\d,]*", quantity.strip()):
                     quantity = int(quantity.replace(",", ""))
-                if isinstance(quantity, bool) or (quantity is not None and (not isinstance(quantity, int) or quantity < 1)):
+                if isinstance(quantity, bool) or (quantity is not None and (not isinstance(quantity, int) or quantity < minimum_lot)):
                     quantity = None
                 normalized_item["lot_size"] = quantity
                 if any(normalized_item.values()):
@@ -433,7 +435,7 @@ class GeminiService:
             if isinstance(lot_size, str) and re.fullmatch(r"\d[\d,]*", lot_size.strip()):
                 lot_size = int(lot_size.replace(",", ""))
                 extracted["lot_size"] = lot_size
-            if isinstance(lot_size, bool) or (lot_size is not None and (not isinstance(lot_size, int) or lot_size < 1)):
+            if isinstance(lot_size, bool) or (lot_size is not None and (not isinstance(lot_size, int) or lot_size < minimum_lot)):
                 extracted["lot_size"] = None
                 if "lot_size" not in missing:
                     missing.append("lot_size")

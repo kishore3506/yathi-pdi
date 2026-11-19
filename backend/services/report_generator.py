@@ -38,9 +38,13 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 logger = logging.getLogger(__name__)
 
 
-def report_count_for_lot(lot_size: int, *, split_lot: bool = True) -> int:
+def report_count_for_lot(lot_size: int, *, split_lot: bool = True, is_crompton: bool = False) -> int:
     """Return the inspection report count required for a lot size."""
     lot_size = int(lot_size)
+    if is_crompton:
+        if lot_size < 0:
+            raise ValueError("Crompton lot size must be at least 0")
+        return 2 if lot_size <= 1200 else 1
     if lot_size < 1:
         raise ValueError("Lot size must be at least 1")
     if not split_lot or lot_size <= 100:
@@ -87,7 +91,8 @@ class ReportGenerator:
             raise ValueError("Product type, model name, SKU, and PO number are required")
         lot_size = int(job_data["lot_size"])
         is_havells = company_name.strip().casefold() == "havells"
-        report_count = report_count_for_lot(lot_size, split_lot=is_havells)
+        is_crompton = company_name.strip().casefold() == "crompton"
+        report_count = report_count_for_lot(lot_size, split_lot=is_havells, is_crompton=is_crompton)
         allocations = allocate_lot_quantity(lot_size, report_count)
         template_id = int(job_data.get("template_id"))
 
@@ -180,7 +185,16 @@ class ReportGenerator:
                         "sku_no": product_number,
                         "vendor_report_number": job_code,
                     }
-                    crompton_report.write_workbook(None, file_path, values, job_data.get("observation_overrides"))
+                    if template_row["template_name"] == crompton_report.TEMPLATE_NAME:
+                        values["vendor_report_number"] = f"{job_code}-{idx:03d}"
+                        samples_per_report = len(crompton_report.COLUMNS)
+                        first_sample = (idx - 1) * samples_per_report
+                        values["serial_numbers"] = serial_numbers[first_sample:first_sample + samples_per_report]
+                        crompton_report.write_native_workbook(
+                            template_file_path, file_path, values, job_data.get("observation_overrides")
+                        )
+                    else:
+                        crompton_report.write_workbook(None, file_path, values, job_data.get("observation_overrides"))
                 else:
                     self.filler.populate_template(
                         template_file_path=template_file_path,
@@ -192,6 +206,9 @@ class ReportGenerator:
                         serial_number=unit_serial,
                     )
                 report_data = self.reader.read_report(file_path, primary_sheet)
+                if report_data["primary_sheet"] == crompton_report.SHEET_NAME:
+                    report_data["header_data"].setdefault("sku_no", product_number)
+                    report_data["header_data"].setdefault("po_number", job_data.get("po_number"))
             report_data_json = json.dumps(report_data)
 
             cursor.execute("""
@@ -316,7 +333,10 @@ class ReportGenerator:
             elif report_data["primary_sheet"] == KSB_SHEET_NAME:
                 write_ksb_pdf(report_data, pdf_path)
             elif report_data["primary_sheet"] == crompton_report.SHEET_NAME:
-                crompton_report.write_pdf(report_data, pdf_path)
+                if all(sheet in report_data["sheet_names"] for sheet in crompton_report.NATIVE_SHEETS):
+                    crompton_report.write_native_pdf(excel_path, pdf_path)
+                else:
+                    crompton_report.write_pdf(report_data, pdf_path)
             else:
                 self._generate_pdf_reportlab(report_data, pdf_path, rep["report_code"], rep["unit_index"])
 

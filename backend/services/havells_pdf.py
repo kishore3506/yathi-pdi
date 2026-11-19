@@ -63,18 +63,22 @@ def _print_copy(source, destination):
 
 
 def write_havells_pdf(workbook, output_pdf):
+    render_workbook_pdf(workbook, output_pdf, _print_copy, "Havells")
+
+
+def render_workbook_pdf(workbook, output_pdf, prepare, customer):
     executable = os.getenv("PDI_HAVELLS_SOFFICE") or shutil.which("soffice")
     if not executable and os.name == "nt":
         installed = Path(os.getenv("ProgramFiles", r"C:\Program Files")) / "LibreOffice/program/soffice.com"
         executable = str(installed) if installed.is_file() else None
     if not executable:
-        raise NotImplementedError("Install or configure LibreOffice on the server to export the Havells template as PDF.")
+        raise NotImplementedError(f"Install or configure LibreOffice on the server to export the {customer} template as PDF.")
     output = Path(output_pdf)
     profile = (DATA_DIR / "havells-pdf-profile").as_uri()
-    with TemporaryDirectory(prefix="havells-export-", dir=output.parent) as folder:
+    with TemporaryDirectory(prefix="pdi-export-", dir=output.parent) as folder:
         root = Path(folder).resolve()
-        source = root / "Havells.xlsx"
-        _print_copy(workbook, source)
+        source = root / "Report.xlsx"
+        prepare(workbook, source)
         try:
             with _RENDER_LOCK:
                 subprocess.run([
@@ -82,8 +86,8 @@ def write_havells_pdf(workbook, output_pdf):
                     "--convert-to", "pdf:calc_pdf_Export", "--outdir", str(root), str(source),
                 ], check=True, timeout=60, capture_output=True)
         except (OSError, subprocess.SubprocessError) as error:
-            raise RuntimeError("The Havells workbook could not be printed to PDF.") from error
+            raise RuntimeError(f"The {customer} workbook could not be printed to PDF.") from error
         result = source.with_suffix(".pdf")
         if not result.is_file() or not result.stat().st_size:
-            raise RuntimeError("The Havells workbook did not produce a PDF.")
+            raise RuntimeError(f"The {customer} workbook did not produce a PDF.")
         result.replace(output)

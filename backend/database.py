@@ -384,7 +384,7 @@ def seed_crompton_template(cursor, company_id, templates_dir, now):
             """INSERT INTO pdi_templates (company_id, product_type, template_name, file_path,
                                           sheet_names, primary_sheet, registration_date)
                VALUES (?, 'Surface Pump', ?, ?, ?, ?, ?)""",
-            (company_id, crompton_report.TEMPLATE_NAME, str(path), json.dumps([crompton_report.SHEET_NAME]),
+            (company_id, crompton_report.TEMPLATE_NAME, str(path), json.dumps(crompton_report.NATIVE_SHEETS),
              crompton_report.SHEET_NAME, now),
         )
         template_id = cursor.lastrowid
@@ -392,13 +392,13 @@ def seed_crompton_template(cursor, company_id, templates_dir, now):
             """INSERT INTO template_field_mappings
                (template_id, field_key, field_label, target_sheet, target_cell) VALUES (?, ?, ?, ?, ?)""",
             (
-                (template_id, key, label, crompton_report.SHEET_NAME, f"E{row}")
-                for row, (key, label) in enumerate(crompton_report.HEADER_FIELDS, 2)
+                (template_id, key, label, *crompton_report.NATIVE_FIELDS[key])
+                for key, label in crompton_report.HEADER_FIELDS if key in crompton_report.NATIVE_FIELDS
             ),
         )
     cursor.execute(
-        "UPDATE pdi_templates SET is_active = 0 WHERE company_id = ? AND template_name = ?",
-        (company_id, SURFACE_PUMP_TEMPLATES["Crompton"]),
+        "UPDATE pdi_templates SET is_active = 0 WHERE company_id = ? AND template_name IN (?, ?)",
+        (company_id, SURFACE_PUMP_TEMPLATES["Crompton"], crompton_report.LEGACY_TEMPLATE_NAME),
     )
 
 

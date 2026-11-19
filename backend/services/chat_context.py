@@ -47,6 +47,7 @@ APPLICATION_REFERENCE = {
     ],
     "report_generation": {
         "lot_size_rules_customer": "Havells",
+        "crompton_lot_size_rules": "Crompton generates two reports per model for lot sizes 0 through 1200 inclusive, and one report above 1200.",
         "other_customers": "Generate one report per model for the full lot quantity.",
         "lot_size_rules": [
             {"minimum_lot_size": 1, "maximum_lot_size": 100, "reports": 1},
@@ -55,7 +56,7 @@ APPLICATION_REFERENCE = {
             {"minimum_lot_size": 2501, "maximum_lot_size": 4000, "reports": 4},
             {"minimum_lot_size": 4001, "maximum_lot_size": None, "reports": 5},
         ],
-        "quantity_allocation": "Split each Havells model's lot evenly across its reports; earlier reports receive any remainder.",
+        "quantity_allocation": "Split a model's lot evenly across its reports for Havells and Crompton. Earlier reports receive any remainder.",
         "observation_columns": "Havells uses five sample columns G-K, numbered sequentially across reports and restarted for each model.",
         "havells_inspection_checkpoints": 56,
     },
@@ -63,7 +64,7 @@ APPLICATION_REFERENCE = {
         "havells": "All Havells models use the revised Surface Pump workbook with existing preset observations.",
         "ksb": "KSB uses its own Excel format with 22 checkpoints, 14 pump serial and observation columns, remarks, and an Accept or Reject lot decision.",
         "falcon": "Falcon uses its OEM checklist with 18 OK / NOT OK entries including the conclusion. The PDF export uses the customer's supplied layout.",
-        "crompton": "Crompton uses its two-page MBD R4 PDF with 16 checks, ten sample serial numbers, per-check remarks, and four possible lot decisions.",
+        "crompton": "New Crompton reports use the supplied MBD R4 Excel workbook, with two tabs, 16 checks, ten sample serial numbers, preset values, per-check remarks, and four possible lot decisions. PDF downloads print the workbook.",
         "stg": "STG uses the Sterling Sites Word report. Its 46 photo slots cover product, label, inner box, outer carton and four measurement groups. Open Review, use Upload or Camera in a specific cell, and choose Download Word report for the original layout.",
         "other_customers": "Use the active registered template matched to the customer and product type.",
     },

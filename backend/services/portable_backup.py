@@ -15,6 +15,7 @@ try:
     from .stg_report import TEMPLATE_NAME as STG_TEMPLATE_NAME
     from .ksb_report import TEMPLATE_NAME as KSB_TEMPLATE_NAME
     from .crompton_report import TEMPLATE_NAME as CROMPTON_TEMPLATE_NAME
+    from .crompton_report import LEGACY_TEMPLATE_NAME as CROMPTON_LEGACY_TEMPLATE_NAME
 except ImportError:
     import database
     from migrations import run_migrations
@@ -23,6 +24,7 @@ except ImportError:
     from services.stg_report import TEMPLATE_NAME as STG_TEMPLATE_NAME
     from services.ksb_report import TEMPLATE_NAME as KSB_TEMPLATE_NAME
     from services.crompton_report import TEMPLATE_NAME as CROMPTON_TEMPLATE_NAME
+    from services.crompton_report import LEGACY_TEMPLATE_NAME as CROMPTON_LEGACY_TEMPLATE_NAME
 
 
 _FILE_REFERENCES = (
@@ -73,7 +75,8 @@ def _ensure_initial_import_target(conn):
     template_storage = CUSTOM_TEMPLATES_DIR.resolve()
     if (
         not surface_pump_templates <= registered_names <= surface_pump_templates | {
-            FALCON_TEMPLATE_NAME, STG_TEMPLATE_NAME, KSB_TEMPLATE_NAME, CROMPTON_TEMPLATE_NAME
+            FALCON_TEMPLATE_NAME, STG_TEMPLATE_NAME, KSB_TEMPLATE_NAME, CROMPTON_TEMPLATE_NAME,
+            CROMPTON_LEGACY_TEMPLATE_NAME,
         }
         or any(
             not Path(row["file_path"]).is_file()

@@ -19,6 +19,11 @@ class ExcelReader:
 
         wb = openpyxl.load_workbook(file_path, data_only=True)
         sheet_names = wb.sheetnames
+        if all(sheet in sheet_names for sheet in crompton_report.NATIVE_SHEETS):
+            try:
+                return crompton_report.read_native_report(wb)
+            finally:
+                wb.close()
         if crompton_report.SHEET_NAME in sheet_names:
             try:
                 return crompton_report.read_report(wb)

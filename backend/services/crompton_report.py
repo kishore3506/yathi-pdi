@@ -1,16 +1,23 @@
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from zipfile import ZipFile
 
-from openpyxl import Workbook
+from lxml import etree
+from openpyxl import Workbook, load_workbook
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
+from .havells_pdf import render_workbook_pdf
+from .xlsx_cell_values import MAIN, write_cell_values
 
-TEMPLATE_NAME = "6) MBD - R4.pdf"
+
+LEGACY_TEMPLATE_NAME = "6) MBD - R4.pdf"
+TEMPLATE_NAME = "6) MBD - R4.xlsx"
 SHEET_NAME = "Crompton MBD R4"
+NATIVE_SHEETS = ("Table 1", "Table 2")
 TITLE = "Finished Good - Pre Dispatch Inspection (PDI) Report"
 SERIAL_ROW = 16
 COLUMNS = tuple("GHIJKLMNOP")
@@ -59,6 +66,128 @@ CHECKS = (
 )
 CHECK_ROWS = range(SERIAL_ROW + 1, SERIAL_ROW + 1 + len(CHECKS))
 SAMPLE_EDGES = (623, 684, 744, 805, 865, 926, 987, 1047, 1108, 1169, 1229, 1284)
+NATIVE_FIELDS = {
+    "supplier_name": ("Table 1", "D2"), "supplier_location": ("Table 1", "D3"),
+    "lot_qty": ("Table 1", "J5"), "model_name": ("Table 1", "C6"),
+    "tds_reference": ("Table 1", "J6"), "product_reference": ("Table 1", "C7"),
+    "batch_code": ("Table 1", "J7"), "inspection_date": ("Table 1", "C8"),
+    "vendor_report_number": ("Table 1", "J8"), "additional_info": ("Table 1", "C9"),
+    "note": ("Table 2", "A10"), "inspected_by": ("Table 2", "C12"),
+    "approved_by": ("Table 2", "C13"), "deviation_number": ("Table 2", "Q14"),
+    "deviation_authority": ("Table 2", "Q15"),
+}
+NATIVE_DECISIONS = dict(zip(DECISIONS, ("C15", "D15", "G15", "J15")))
+NATIVE_COLUMNS = dict(zip((*COLUMNS, "U"), "IJKLMNOPQRS"))
+NATIVE_ROWS = dict(zip(CHECK_ROWS, [("Table 1", row) for row in range(13, 20)] +
+                       [("Table 2", row) for row in range(1, 10)]))
+
+
+def _text(value):
+    return "" if value is None else str(value)
+
+
+def write_native_workbook(source, destination, data, observations=None):
+    updates = {sheet: {} for sheet in NATIVE_SHEETS}
+    workbook = load_workbook(source)
+    try:
+        for field, (sheet, address) in NATIVE_FIELDS.items():
+            if data.get(field) is None:
+                continue
+            value = data[field]
+            if field == "note":
+                original = _text(workbook[sheet][address].value)
+                prefix = original.partition("Note:")[0] + "Note:"
+                value = f"{prefix} {value}" if value else prefix
+            elif field in {"inspected_by", "approved_by"}:
+                value = f"Name : {value}" if value else "Name :"
+            elif field == "lot_qty" and str(value).isdecimal():
+                value = int(value)
+            elif field != "lot_qty":
+                value = _text(value)
+            if value != workbook[sheet][address].value:
+                updates[sheet][address] = value
+        decision = data.get("final_judgment")
+        if decision in (*DECISIONS, ""):
+            for label, address in NATIVE_DECISIONS.items():
+                updates["Table 2"][address] = "✓" if decision == label else None
+        for column, serial in zip(COLUMNS, data.get("serial_numbers") or ()):
+            updates["Table 1"][f"{NATIVE_COLUMNS[column]}12"] = _text(serial)
+        for row, (sheet, native_row) in {SERIAL_ROW: ("Table 1", 12), **NATIVE_ROWS}.items():
+            readings = (observations or {}).get(str(row))
+            if not isinstance(readings, dict):
+                continue
+            for column in COLUMNS if row == SERIAL_ROW else (*COLUMNS, "U"):
+                if column not in readings:
+                    continue
+                address = f"{NATIVE_COLUMNS[column]}{native_row}"
+                value = _text(readings[column])
+                if value != _text(workbook[sheet][address].value).strip():
+                    updates[sheet][address] = value or None
+    finally:
+        workbook.close()
+    write_cell_values(source, destination, updates)
+
+
+def read_native_report(workbook):
+    def reading(sheet, address):
+        return _text(workbook[sheet][address].value).strip()
+
+    header = {key: reading(sheet, address) for key, (sheet, address) in NATIVE_FIELDS.items()}
+    header["note"] = header["note"].partition("Note:")[2].strip()
+    for field in ("inspected_by", "approved_by"):
+        header[field] = header[field].removeprefix("Name :").strip()
+    header["final_judgment"] = next(
+        (label for label, cell in NATIVE_DECISIONS.items() if reading("Table 2", cell) == "✓"), ""
+    )
+    return {
+        "primary_sheet": SHEET_NAME,
+        "sheet_names": workbook.sheetnames,
+        "header_data": {"title": TITLE, **header},
+        "sample_columns": list(COLUMNS),
+        "sample_serials": {column: reading("Table 1", f"{NATIVE_COLUMNS[column]}12") for column in COLUMNS},
+        "checkpoints": [
+            {
+                "row_index": row, "item_sn": str(index), "parameter": label,
+                "specification": specification, "method": method,
+                "observations": {
+                    column: reading(sheet, f"{native_column}{native_row}")
+                    for column, native_column in NATIVE_COLUMNS.items()
+                },
+            }
+            for index, ((row, (sheet, native_row)), (_, _, _, label, specification, method))
+            in enumerate(zip(NATIVE_ROWS.items(), CHECKS), 1)
+        ],
+    }
+
+
+def _print_copy(source, destination):
+    # Add landscape print settings to a temporary copy of the two native sheets.
+    with ZipFile(source) as original, ZipFile(destination, "w") as output:
+        for entry in original.infolist():
+            content = original.read(entry)
+            if entry.filename in {"xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"}:
+                sheet = etree.fromstring(content)
+                properties = sheet.find(f"{MAIN}sheetPr")
+                if properties is None:
+                    properties = etree.Element(f"{MAIN}sheetPr")
+                    sheet.insert(0, properties)
+                setup = properties.find(f"{MAIN}pageSetUpPr")
+                if setup is None:
+                    setup = etree.SubElement(properties, f"{MAIN}pageSetUpPr")
+                setup.set("fitToPage", "1")
+                page = sheet.find(f"{MAIN}pageSetup")
+                if page is None:
+                    page = etree.Element(f"{MAIN}pageSetup")
+                    sheet.find(f"{MAIN}pageMargins").addnext(page)
+                for key, value in (("paperSize", "9"), ("orientation", "landscape"),
+                                   ("fitToWidth", "1"), ("fitToHeight", "1")):
+                    page.set(key, value)
+                content = etree.tostring(sheet, encoding="UTF-8", xml_declaration=True)
+            output.writestr(entry, content)
+
+
+def write_native_pdf(workbook, output_pdf):
+    render_workbook_pdf(workbook, output_pdf, _print_copy, "Crompton")
 
 
 def _put(cell, value):
@@ -134,7 +263,7 @@ def read_report(workbook):
 
 
 def write_pdf(report, output_path):
-    source = Path(__file__).resolve().parents[1] / "templates" / TEMPLATE_NAME
+    source = Path(__file__).resolve().parents[1] / "templates" / LEGACY_TEMPLATE_NAME
     writer = PdfWriter(clone_from=source)
     header = report["header_data"]
     for page_index, page in enumerate(writer.pages):

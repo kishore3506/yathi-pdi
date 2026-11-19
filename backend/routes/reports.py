@@ -59,9 +59,10 @@ _report_write_lock = threading.Lock()
 
 @router.post("/generate")
 async def generate_reports(req: ReportGenerateRequest):
-    """Generate PDI reports for a model, applying lot-size bands for Havells."""
-    if req.lot_size <= 0 or req.lot_size > 1_000_000:
-        raise HTTPException(status_code=400, detail="Lot size must be an integer from 1 to 1,000,000.")
+    """Generate PDI reports for a model according to the customer's lot-size rules."""
+    min_lot = 0 if req.company_name.strip().casefold() == "crompton" else 1
+    if not min_lot <= req.lot_size <= 1_000_000:
+        raise HTTPException(status_code=400, detail=f"Lot size must be an integer from {min_lot} to 1,000,000.")
     
     conn = get_db()
     cursor = conn.cursor()
@@ -407,10 +408,17 @@ def save_report_update(report_id, req, *, photo_change=None):
                 values = dict(req.header_data or {})
                 if req.final_judgment is not None:
                     values["final_judgment"] = req.final_judgment
-                crompton_report.write_workbook(
-                    load_workbook(excel_path), temporary_path, values, req.observation_readings
-                )
+                if all(sheet in existing_data.get("sheet_names", []) for sheet in crompton_report.NATIVE_SHEETS):
+                    crompton_report.write_native_workbook(
+                        excel_path, temporary_path, values, req.observation_readings
+                    )
+                else:
+                    crompton_report.write_workbook(
+                        load_workbook(excel_path), temporary_path, values, req.observation_readings
+                    )
                 fresh_data = reader.read_report(temporary_path)
+                fresh_data["header_data"].setdefault("sku_no", values.get("sku_no", job["product_number"]))
+                fresh_data["header_data"].setdefault("po_number", values.get("po_number", job["po_number"]))
             else:
                 temporary_path += ".xlsx"
                 filler.populate_template(

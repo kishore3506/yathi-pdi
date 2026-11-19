@@ -19,10 +19,13 @@ import {
   Trash2
 } from 'lucide-react';
 
-const getReportCount = (lotSize, splitLot) => {
+const getReportCount = (lotSize, customer) => {
+  if (String(lotSize ?? '').trim() === '') return 0;
   const qty = Number(lotSize);
-  if (!Number.isInteger(qty) || qty < 1) return 0;
-  if (!splitLot || qty <= 100) return 1;
+  if (!Number.isInteger(qty) || qty < 0 || qty > 1000000) return 0;
+  if (customer === 'crompton') return qty <= 1200 ? 2 : 1;
+  if (qty === 0) return 0;
+  if (customer !== 'havells' || qty <= 100) return 1;
   if (qty <= 1200) return 2;
   if (qty <= 2500) return 3;
   if (qty <= 4000) return 4;
@@ -73,7 +76,7 @@ export default function NewInspectionPage({
 
   const [missingFields, setMissingFields] = useState([]);
   const [uncertainFields, setUncertainFields] = useState([]);
-  const splitLot = formData.company_name.trim().toLowerCase() === 'havells';
+  const reportCustomer = formData.company_name.trim().toLowerCase();
   const modelEntries = [
     {
       id: 'primary',
@@ -85,7 +88,7 @@ export default function NewInspectionPage({
     ...additionalModels
   ];
   const totalReportCount = modelEntries.reduce(
-    (total, model) => total + getReportCount(model.lot_size, splitLot),
+    (total, model) => total + getReportCount(model.lot_size, reportCustomer),
     0
   );
   const [templateMatch, setTemplateMatch] = useState({
@@ -344,7 +347,7 @@ export default function NewInspectionPage({
       product_type: values.product_type,
       product_number: values.product_number,
       model_name: values.model_name,
-      lot_size: parseInt(values.lot_size),
+      lot_size: Number(values.lot_size),
       customer_name: values.customer_name,
       customer_email: values.customer_email,
       supplier_name: values.supplier_name,
@@ -384,8 +387,7 @@ export default function NewInspectionPage({
       !String(model.model_name ?? '').trim() ||
       !String(model.product_number ?? '').trim() ||
       !String(model.po_number ?? '').trim() ||
-      !Number.isInteger(Number(model.lot_size)) ||
-      Number(model.lot_size) <= 0
+      !getReportCount(model.lot_size, reportCustomer)
     );
     if (incompleteModelIndex !== -1) {
       setErrorMsg(`Enter a model name, SKU, PO number, and valid lot size for model ${incompleteModelIndex + 1}.`);
@@ -620,7 +622,7 @@ export default function NewInspectionPage({
               </datalist>
             )}
             {modelEntries.map((model, index) => {
-              const modelReportCount = getReportCount(model.lot_size, splitLot);
+              const modelReportCount = getReportCount(model.lot_size, reportCustomer);
               return (
                 <div key={model.id} className="rounded-xl border border-blue-200 bg-white shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between gap-3 px-4 py-3 bg-blue-50 border-b border-blue-100">
@@ -663,7 +665,7 @@ export default function NewInspectionPage({
                       Lot size *
                       <input
                         type="number"
-                        min="1"
+                        min={reportCustomer === 'crompton' ? 0 : 1}
                         max="1000000"
                         value={model.lot_size}
                         onChange={(event) => updateModelEntry(index, 'lot_size', event.target.value)}

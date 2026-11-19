@@ -23,7 +23,7 @@ A Pre-Delivery Inspection (PDI) report automation platform for **Yathi Pumps Pvt
   - **PO Total Qty** (Cell `C6`)
   - **Inspection Date** & **Dispatch Date** (Cells `H2`, `J2`) only when supplied or readable
   - Existing inspection checklist, observation values, and judgment in the selected template are retained
-- **Report Generation:** Havells gets 1–5 editable workbooks per model based on lot size. Other customers get one workbook per model for the full lot. The original Excel templates and their formatting are preserved.
+- **Report Generation:** Havells gets 1–5 workbooks per model based on lot size. Crompton uses the MBD R4 workbook and gets two reports per model for lots of 0–1,200 inclusive. Larger Crompton lots and other customers get one report per model.
 - **Interactive In-Browser Editor:** Excel-like grid preview and live editor for header metadata and all 56 checkpoint observation readings (including multi-sample columns G to K for electrical/hydraulic performance tests).
 - **Havells J1 Legal Checklist:** Generates one J1 checklist per Havells model/PO lot. After approving that model's PDI reports, review each checklist item, enter remarks and MRP, paste or select product evidence pictures for the carton, nameplate/labels, and technical specifications, then agree to the checklist before emailing.
 - **Export, Print & Email:**
@@ -95,7 +95,7 @@ The model defaults to `gemini-3.5-flash-lite`, which is listed in the [current G
 
 ### Report counts and quantity allocation
 
-The table applies to Havells. For every other customer, each model gets one workbook with its full lot quantity.
+The table applies to Havells. Crompton gets two reports per model for lots of 0–1,200 inclusive and one above that range. For other customers, each model gets one report with its full lot quantity.
 
 | Uploaded lot size | Workbooks | Quantity recorded in each workbook |
 | --- | ---: | --- |

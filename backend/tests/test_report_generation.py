@@ -48,7 +48,7 @@ class ReportGenerationTests(unittest.TestCase):
             database.init_db()
             for customer, template in (
                 ("Falcon", "Falcon_PDI.xlsx"),
-                ("Crompton", "6) MBD - R4.pdf"),
+                ("Crompton", "6) MBD - R4.xlsx"),
                 ("KSB", "KSB -PDI Report Format.xlsx"),
             ):
                 with self.subTest(customer=customer):
@@ -75,10 +75,11 @@ class ReportGenerationTests(unittest.TestCase):
                     report, = result["reports"]
                     self.assertEqual(report["report_data"]["header_data"]["lot_qty"], "4001")
 
-    def test_crompton_review_exports_both_original_pdf_pages(self):
+    def test_crompton_uses_excel_template_and_splits_lots_through_1200(self):
         from routes.reports import save_report_update
         from schemas import ReportUpdateRequest
-        from services.crompton_report import TEMPLATE_NAME
+        from services.crompton_report import NATIVE_SHEETS, TEMPLATE_NAME
+        from services.report_generator import report_count_for_lot
         from services.template_matcher import TemplateMatcher
 
         with tempfile.TemporaryDirectory() as temp_dir, patch.object(
@@ -88,15 +89,24 @@ class ReportGenerationTests(unittest.TestCase):
             match = TemplateMatcher().match_template("Crompton", "CMB", "MBD052(1PH)Y-18")
             self.assertEqual(match["template_name"], TEMPLATE_NAME)
             generator = ReportGenerator()
-            job = generator.generate_batch_reports({
+            data = {
                 "template_id": match["template_id"], "company_name": "Crompton",
                 "product_type": "CMB", "model_name": "MBD052(1PH)Y-18",
-                "product_number": "TEST-SKU", "po_number": "TEST-PO", "lot_size": 135,
-                "serial_numbers": [f"SERIAL-{i:02}" for i in range(1, 11)],
-            }, temp_dir)
-            report, = job["reports"]
+                "product_number": "TEST-SKU", "po_number": "TEST-PO", "lot_size": 1200,
+                "serial_numbers": [f"SERIAL-{i:02}" for i in range(1, 21)],
+            }
+            job = generator.generate_batch_reports(data, temp_dir)
+            report, second = job["reports"]
+            self.assertEqual(job["quantity_allocations"], [600, 600])
+            self.assertEqual(second["report_data"]["sample_serials"]["G"], "SERIAL-11")
+            zero = generator.generate_batch_reports({**data, "lot_size": 0}, temp_dir)
+            self.assertEqual(zero["quantity_allocations"], [0, 0])
+            self.assertEqual(zero["reports"][0]["report_data"]["header_data"]["lot_qty"], "0")
+            self.assertEqual(report_count_for_lot(1201, is_crompton=True), 1)
             self.assertEqual(len(report["report_data"]["sample_columns"]), 10)
             self.assertEqual(len(report["report_data"]["checkpoints"]), 16)
+            self.assertEqual(tuple(report["report_data"]["sheet_names"]), NATIVE_SHEETS)
+            self.assertEqual(report["report_data"]["checkpoints"][1]["observations"]["G"], "∞")
             self.assertEqual(report["report_data"]["header_data"]["final_judgment"], "")
             saved = save_report_update(report["id"], ReportUpdateRequest(
                 expected_revision=1,
@@ -105,16 +115,17 @@ class ReportGenerationTests(unittest.TestCase):
                 final_judgment="Passed after Rework",
             ))
             self.assertEqual(saved["report_data"]["header_data"]["final_judgment"], "Passed after Rework")
-            source = PdfReader(BACKEND_ROOT / "templates" / TEMPLATE_NAME)
+            with ZipFile(BACKEND_ROOT / "templates" / TEMPLATE_NAME) as source, ZipFile(report["excel_path"]) as actual:
+                for part in source.namelist():
+                    if part not in {"xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"}:
+                        self.assertEqual(actual.read(part), source.read(part), part)
             output = PdfReader(generator.convert_to_pdf(report["id"]))
-            self.assertEqual(len(output.pages), len(source.pages))
-            self.assertEqual([p.mediabox for p in output.pages], [p.mediabox for p in source.pages])
-            for page in range(2):
-                self.assertIn(source.pages[page].extract_text().strip(), output.pages[page].extract_text())
-            page_one = output.pages[0].extract_text()
-            page_two = output.pages[1].extract_text()
-            for text in ("MBD052(1PH)Y-18", "135", "TDS-202", "SERIAL-10", "PASS", "Verified"):
+            self.assertEqual(len(output.pages), 2)
+            self.assertTrue(all(page.mediabox.width > page.mediabox.height for page in output.pages))
+            page_one, page_two = [" ".join(page.extract_text().split()) for page in output.pages]
+            for text in ("MBD052(1PH)Y-18", "600", "TDS-202", "PASS", "Verified"):
                 self.assertIn(text, page_one)
+            self.assertRegex(page_one, r"SERIAL-\s*10\b")
             for text in ("42.5", "QA Tester", "Check confirmed"):
                 self.assertIn(text, page_two)
 
