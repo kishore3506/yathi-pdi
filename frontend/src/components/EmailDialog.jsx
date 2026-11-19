@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Mail, CheckCircle2, AlertTriangle, Camera, ImagePlus, Loader2, X, Paperclip, Send } from 'lucide-react';
 import ScanCameraDialog from './ScanCameraDialog';
+import { prepareScanImage } from '../services/scanImages';
 
 export default function EmailDialog({
   isOpen,
@@ -131,7 +132,7 @@ export default function EmailDialog({
 
   const addImages = (images) => updateScans(async () => {
     for (const image of images) {
-      const saved = await api.uploadEmailScan(scanJobId, image);
+      const saved = await api.uploadEmailScan(scanJobId, await prepareScanImage(image));
       setScans(current => [...current, saved]);
     }
   });
@@ -306,7 +307,7 @@ export default function EmailDialog({
                           </button>
                           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-blue-800 focus-within:ring-2 focus-within:ring-blue-600 has-[:disabled]:cursor-default has-[:disabled]:opacity-50">
                             <ImagePlus className="h-4 w-4" /> Upload images
-                            <input type="file" multiple accept="image/jpeg,image/png,image/webp"
+                            <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
                               disabled={scanBusy || sending || skipping || scans.length >= 10} className="sr-only"
                               onChange={event => {
                                 const files = Array.from(event.target.files);
