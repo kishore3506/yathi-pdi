@@ -80,13 +80,14 @@ NATIVE_DECISIONS = dict(zip(DECISIONS, ("C15", "D15", "G15", "J15")))
 NATIVE_COLUMNS = dict(zip((*COLUMNS, "U"), "IJKLMNOPQRS"))
 NATIVE_ROWS = dict(zip(CHECK_ROWS, [("Table 1", row) for row in range(13, 20)] +
                        [("Table 2", row) for row in range(1, 10)]))
+MAJOR_START_ROW = 22
 
 
 def _text(value):
     return "" if value is None else str(value)
 
 
-def write_native_workbook(source, destination, data, observations=None):
+def write_native_workbook(source, destination, data, observations=None, *, unit_index=1):
     updates = {sheet: {} for sheet in NATIVE_SHEETS}
     workbook = load_workbook(source)
     try:
@@ -123,6 +124,11 @@ def write_native_workbook(source, destination, data, observations=None):
                 value = _text(readings[column])
                 if value != _text(workbook[sheet][address].value).strip():
                     updates[sheet][address] = value or None
+        if unit_index == 2:
+            for row, (sheet, native_row) in NATIVE_ROWS.items():
+                if row >= MAJOR_START_ROW:
+                    for column in COLUMNS[3:]:
+                        updates[sheet][f"{NATIVE_COLUMNS[column]}{native_row}"] = "-"
     finally:
         workbook.close()
     write_cell_values(source, destination, updates)

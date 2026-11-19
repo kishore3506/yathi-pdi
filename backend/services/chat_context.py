@@ -48,6 +48,7 @@ APPLICATION_REFERENCE = {
     "report_generation": {
         "lot_size_rules_customer": "Havells",
         "crompton_lot_size_rules": "Crompton generates two reports per model for lot sizes 0 through 1200 inclusive, and one report above 1200.",
+        "crompton_second_report": "Crompton's second report starts with dashes in Actual Test Values for Units 4–10 from the MAJOR section onward. Units 1–3 keep their template values.",
         "other_customers": "Generate one report per model for the full lot quantity.",
         "lot_size_rules": [
             {"minimum_lot_size": 1, "maximum_lot_size": 100, "reports": 1},

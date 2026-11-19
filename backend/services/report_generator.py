@@ -192,7 +192,8 @@ class ReportGenerator:
                         first_sample = (idx - 1) * samples_per_report
                         values["serial_numbers"] = serial_numbers[first_sample:first_sample + samples_per_report]
                         crompton_report.write_native_workbook(
-                            template_file_path, file_path, values, job_data.get("observation_overrides")
+                            template_file_path, file_path, values, job_data.get("observation_overrides"),
+                            unit_index=idx,
                         )
                     else:
                         crompton_report.write_workbook(None, file_path, values, job_data.get("observation_overrides"))

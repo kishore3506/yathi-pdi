@@ -100,6 +100,14 @@ class ReportGenerationTests(unittest.TestCase):
             self.assertEqual(job["quantity_allocations"], [280, 280])
             self.assertEqual([item["report_data"]["header_data"]["lot_qty"] for item in job["reports"]], ["560", "560"])
             self.assertEqual(second["report_data"]["sample_serials"]["G"], "SERIAL-11")
+            for first_check, second_check in zip(
+                report["report_data"]["checkpoints"], second["report_data"]["checkpoints"]
+            ):
+                expected = first_check["observations"].copy()
+                if first_check["row_index"] >= 22:
+                    expected.update(dict.fromkeys("JKLMNOP", "-"))
+                self.assertEqual(second_check["observations"], expected, first_check["parameter"])
+            self.assertEqual(report["report_data"]["checkpoints"][5]["observations"]["J"], "✓")
             zero = generator.generate_batch_reports({**data, "lot_size": 0}, temp_dir)
             self.assertEqual(zero["quantity_allocations"], [0, 0])
             self.assertEqual(zero["reports"][0]["report_data"]["header_data"]["lot_qty"], "0")
