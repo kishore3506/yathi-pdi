@@ -95,7 +95,7 @@ The model defaults to `gemini-3.5-flash-lite`, which is listed in the [current G
 
 ### Report counts and quantity allocation
 
-The table applies to Havells. Crompton gets two reports per model for lots of 0–1,200 inclusive and one above that range. For other customers, each model gets one report with its full lot quantity.
+The table applies to Havells. Crompton gets two reports per model for lots of 0–1,200 inclusive and one above that range. Each Crompton report shows the full lot size. For other customers, each model gets one report with its full lot quantity.
 
 | Uploaded lot size | Workbooks | Quantity recorded in each workbook |
 | --- | ---: | --- |

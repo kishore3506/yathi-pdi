@@ -76,7 +76,8 @@ class ReportGenerator:
     ) -> Dict[str, Any]:
         """
         Generates the rule-based number of editable Excel reports. Each report
-        records its allocated quantity, with allocations summing to the lot.
+        records its allocated quantity, except Crompton uses the full lot as its
+        report header.
         """
         conn = get_db()
         cursor = conn.cursor()
@@ -181,7 +182,7 @@ class ReportGenerator:
                         **report_job_data,
                         "supplier_name": report_job_data.get("supplier_name") or "Yathi Pumps",
                         "supplier_location": report_job_data.get("supplier_location") or "Coimbatore",
-                        "lot_qty": allocations[idx - 1],
+                        "lot_qty": lot_size,
                         "sku_no": product_number,
                         "vendor_report_number": job_code,
                     }

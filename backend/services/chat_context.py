@@ -56,7 +56,7 @@ APPLICATION_REFERENCE = {
             {"minimum_lot_size": 2501, "maximum_lot_size": 4000, "reports": 4},
             {"minimum_lot_size": 4001, "maximum_lot_size": None, "reports": 5},
         ],
-        "quantity_allocation": "Split a model's lot evenly across its reports for Havells and Crompton. Earlier reports receive any remainder.",
+        "quantity_allocation": "Havells reports show their allocated quantities. Crompton reports each show the full lot size.",
         "observation_columns": "Havells uses five sample columns G-K, numbered sequentially across reports and restarted for each model.",
         "havells_inspection_checkpoints": 56,
     },

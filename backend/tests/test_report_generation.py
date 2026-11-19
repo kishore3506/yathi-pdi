@@ -92,16 +92,18 @@ class ReportGenerationTests(unittest.TestCase):
             data = {
                 "template_id": match["template_id"], "company_name": "Crompton",
                 "product_type": "CMB", "model_name": "MBD052(1PH)Y-18",
-                "product_number": "TEST-SKU", "po_number": "TEST-PO", "lot_size": 1200,
+                "product_number": "TEST-SKU", "po_number": "TEST-PO", "lot_size": 560,
                 "serial_numbers": [f"SERIAL-{i:02}" for i in range(1, 21)],
             }
             job = generator.generate_batch_reports(data, temp_dir)
             report, second = job["reports"]
-            self.assertEqual(job["quantity_allocations"], [600, 600])
+            self.assertEqual(job["quantity_allocations"], [280, 280])
+            self.assertEqual([item["report_data"]["header_data"]["lot_qty"] for item in job["reports"]], ["560", "560"])
             self.assertEqual(second["report_data"]["sample_serials"]["G"], "SERIAL-11")
             zero = generator.generate_batch_reports({**data, "lot_size": 0}, temp_dir)
             self.assertEqual(zero["quantity_allocations"], [0, 0])
             self.assertEqual(zero["reports"][0]["report_data"]["header_data"]["lot_qty"], "0")
+            self.assertEqual(report_count_for_lot(1200, is_crompton=True), 2)
             self.assertEqual(report_count_for_lot(1201, is_crompton=True), 1)
             self.assertEqual(len(report["report_data"]["sample_columns"]), 10)
             self.assertEqual(len(report["report_data"]["checkpoints"]), 16)
@@ -123,11 +125,13 @@ class ReportGenerationTests(unittest.TestCase):
             self.assertEqual(len(output.pages), 2)
             self.assertTrue(all(page.mediabox.width > page.mediabox.height for page in output.pages))
             page_one, page_two = [" ".join(page.extract_text().split()) for page in output.pages]
-            for text in ("MBD052(1PH)Y-18", "600", "TDS-202", "PASS", "Verified"):
+            for text in ("MBD052(1PH)Y-18", "560", "TDS-202", "PASS", "Verified"):
                 self.assertIn(text, page_one)
             self.assertRegex(page_one, r"SERIAL-\s*10\b")
             for text in ("42.5", "QA Tester", "Check confirmed"):
                 self.assertIn(text, page_two)
+            second_pdf = PdfReader(generator.convert_to_pdf(second["id"]))
+            self.assertIn("560", second_pdf.pages[0].extract_text())
 
     def test_ksb_uses_the_registered_layout_and_all_fourteen_sample_columns(self):
         from services.template_matcher import TemplateMatcher
