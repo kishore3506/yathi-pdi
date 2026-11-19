@@ -73,16 +73,13 @@ export default function GeneratedReportsPage({
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-gray-200 pt-4">
             {selectedJob?.reports?.filter(report => (
-              report.report_data?.format === 'docx' || report.report_data?.primary_sheet === 'KSB PDI FORMAT'
-              || report.report_data?.primary_sheet === 'Crompton MBD R4'
-              || selectedJob.company_name?.trim().toLowerCase() === 'havells'
+              report.report_data?.format === 'docx' || report.report_data?.primary_sheet === 'Crompton MBD R4'
             )).map(report => (
               <a key={report.id} href={report.report_data?.primary_sheet === 'Crompton MBD R4'
                 ? api.getPdfDownloadUrl(report.id) : api.getDocumentDownloadUrl(report.id)}
                 className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-800">
                 <Download className="h-4 w-4" />
-                {report.report_data?.format === 'docx' ? 'Download Word report'
-                  : report.report_data?.primary_sheet === 'Crompton MBD R4' ? 'Download PDF report' : `Download Excel report ${report.unit_index}`}
+                {report.report_data?.format === 'docx' ? 'Download Word report' : 'Download PDF report'}
               </a>
             ))}
             <button

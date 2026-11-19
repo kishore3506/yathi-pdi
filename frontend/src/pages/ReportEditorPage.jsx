@@ -388,11 +388,6 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
 
           {/* Action Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            {currentReport && (isKsb || job?.company_name?.trim().toLowerCase() === 'havells') && (
-              <a href={api.getExcelDownloadUrl(currentReport.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">
-                <Download className="h-3.5 w-3.5" /> Download Excel report
-              </a>
-            )}
             {isStg ? (
               <a href={api.getDocumentDownloadUrl(currentReport.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">
                 <Download className="h-3.5 w-3.5" /> Download Word report
@@ -407,7 +402,7 @@ export default function ReportEditorPage({ jobId, reportId, setActiveTab, setSel
                 {downloading
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   : <Download className="w-3.5 h-3.5" />}
-                <span>{downloading ? 'Downloading...' : isCrompton ? 'Download PDF report' : 'Download'}</span>
+                <span>{downloading ? 'Downloading...' : reportsList.length > 1 ? 'Download PDF reports' : 'Download PDF report'}</span>
               </button>
             )}
 

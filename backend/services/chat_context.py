@@ -60,8 +60,8 @@ APPLICATION_REFERENCE = {
         "havells_inspection_checkpoints": 56,
     },
     "template_selection": {
-        "havells": "All Havells models use the revised Surface Pump workbook with existing preset observations. Choose Download Excel report for the source layout.",
-        "ksb": "KSB uses its own Excel format with 22 checkpoints, 14 pump serial and observation columns, remarks, and an Accept or Reject lot decision. Choose Download Excel report for the source layout.",
+        "havells": "All Havells models use the revised Surface Pump workbook with existing preset observations.",
+        "ksb": "KSB uses its own Excel format with 22 checkpoints, 14 pump serial and observation columns, remarks, and an Accept or Reject lot decision.",
         "falcon": "Falcon uses its OEM checklist with 18 OK / NOT OK entries including the conclusion. The PDF export uses the customer's supplied layout.",
         "crompton": "Crompton uses its two-page MBD R4 PDF with 16 checks, ten sample serial numbers, per-check remarks, and four possible lot decisions.",
         "stg": "STG uses the Sterling Sites Word report. Its 46 photo slots cover product, label, inner box, outer carton and four measurement groups. Open Review, use Upload or Camera in a specific cell, and choose Download Word report for the original layout.",
